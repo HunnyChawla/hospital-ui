@@ -375,11 +375,20 @@ export interface InventoryAlerts {
 }
 
 // --- Dispensing & Prescription Queue ---
+export type PrescriptionSource = "general" | "optometry" | "ipd";
+
+export interface DispensingDoctorOption {
+  doctor_id: string;
+  doctor_name: string;
+  specialization?: string | null;
+}
+
 export interface PrescriptionQueueItem {
   prescription_id: string;
   prescription_number: string;
   prescription_date: string;
-  doctor_id: string;
+  source?: PrescriptionSource;
+  doctor_id?: string | null;
   doctor_name?: string;
   patient_id: string;
   patient_name: string;
@@ -387,17 +396,55 @@ export interface PrescriptionQueueItem {
   patient_mobile?: string;
   visit_id?: string;
   admission_id?: string;
+  admission_number?: string | null;
+  ward_bed?: string | null;
   encounter_type: "OPD" | "IPD";
   pharmacy_status: "pending" | "partially_dispensed" | "dispensed" | "cancelled";
   diagnosis?: string;
   items_count: number;
 }
 
+export interface PrescriptionDispenseMedicineItem {
+  prescription_item_id: string;
+  medicine_id: string | null;
+  medicine_name: string;
+  generic_name?: string;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
+  prescribed_quantity_text?: string | null;
+  form?: string | null;
+  strength?: string | null;
+  route?: string | null;
+  timing?: string | null;
+  is_prn?: boolean;
+  prn_reason?: string | null;
+  tapering_steps?: any;
+  special_instructions?: string | null;
+  applicable_eye?: string | null;
+  tax_rate: number;
+  dispensing_unit?: string | null;
+  schedule?: string | null;
+  dispense_status?: string;
+  substituted_medicine_id?: string | null;
+  substituted_medicine_name?: string | null;
+  external_reason?: string | null;
+  prescribed_quantity: number;
+  dispensed_quantity: number;
+  remaining_quantity: number;
+  available_stock?: number;
+  total_available_stock: number;
+  available_batches: MedicineBatch[];
+  fefo_batch?: MedicineBatch;
+}
+
 export interface PrescriptionDispenseDetail {
   prescription_id: string;
   prescription_number: string;
   prescription_date: string;
-  doctor_id: string;
+  source?: PrescriptionSource;
+  doctor_id?: string | null;
   doctor_name?: string;
   patient_id: string;
   patient_name: string;
@@ -408,26 +455,20 @@ export interface PrescriptionDispenseDetail {
   encounter_type: "OPD" | "IPD";
   visit_id?: string;
   admission_id?: string;
+  admission_number?: string | null;
+  ward_bed?: string | null;
   pharmacy_status: string;
   diagnosis?: string;
   notes?: string;
-  medicines: Array<{
-    prescription_item_id: string;
-    medicine_id: string;
-    medicine_name: string;
-    generic_name?: string;
-    dosage?: string;
-    frequency?: string;
-    duration?: string;
-    instructions?: string;
-    prescribed_quantity: number;
-    dispensed_quantity: number;
-    remaining_quantity: number;
-    total_available_stock: number;
-    available_batches: MedicineBatch[];
-    fefo_batch?: MedicineBatch;
-  }>;
+  medicines: PrescriptionDispenseMedicineItem[];
   past_dispensings: DispensingResponse[];
+}
+
+export interface ResolvePrescriptionItemData {
+  source?: PrescriptionSource;
+  action: "substitute" | "external" | "skipped" | "reset";
+  substituted_medicine_id?: string;
+  reason?: string;
 }
 
 export interface DispensingResponseItem {
@@ -451,6 +492,7 @@ export interface DispensingResponse {
   id: string;
   tenant_id: string;
   prescription_id: string;
+  prescription_source?: string;
   patient_id: string;
   patient_name?: string;
   admission_id?: string;
@@ -471,6 +513,7 @@ export interface DispensingResponse {
 
 export interface ConfirmDispensingData {
   prescription_id: string;
+  prescription_source?: PrescriptionSource;
   patient_id: string;
   visit_id?: string;
   admission_id?: string;
@@ -514,15 +557,29 @@ export interface PharmacyInvoice {
   patient_uhid?: string;
   patient_phone?: string;
   visit_id?: string;
+  prescription_id?: string;
   invoice_date: string;
   subtotal: number;
-  tax_total: number;
-  discount_total: number;
+  discount: number;
+  tax_amount: number;
+  discount_total?: number;
+  tax_total?: number;
   total_amount: number;
-  status: "paid" | "cancelled" | "refunded";
+  paid_amount: number;
+  status: "pending" | "partial" | "paid" | "cancelled" | "refunded";
+  payment_method?: string | null;
+  payment_reference?: string | null;
+  paid_at?: string | null;
   notes?: string;
   created_at: string;
   items: PharmacyInvoiceItem[];
+}
+
+export interface CollectPharmacyPaymentData {
+  amount: number;
+  payment_method: string;
+  payment_reference?: string;
+  notes?: string;
 }
 
 // --- Patient Returns ---
@@ -907,21 +964,64 @@ export const pharmacyApi = {
   },
 
   // --- Prescriptions & Dispensing ---
+  getDispensingDoctors: async (): Promise<DispensingDoctorOption[]> => {
+    const res = await apiClient.get<DispensingDoctorOption[]>("/pharmacy/dispensing/doctors");
+    return res.data;
+  },
+
   getDispensingQueue: async (params?: {
     search?: string;
     encounter_type?: "OPD" | "IPD";
+    source?: PrescriptionSource;
+    status?: string;
     pharmacy_status?: string;
+    doctor_id?: string;
+    date_from?: string;
+    date_to?: string;
     start_date?: string;
     end_date?: string;
     page?: number;
     page_size?: number;
   }): Promise<PaginatedResult<PrescriptionQueueItem>> => {
-    const res = await apiClient.get<PaginatedResult<PrescriptionQueueItem>>("/pharmacy/dispensing/queue", { params });
+    const queryParams = params
+      ? {
+          search: params.search,
+          encounter_type: params.encounter_type,
+          source: params.source,
+          status: params.status ?? params.pharmacy_status,
+          doctor_id: params.doctor_id,
+          date_from: params.date_from ?? params.start_date,
+          date_to: params.date_to ?? params.end_date,
+          page: params.page,
+          page_size: params.page_size,
+        }
+      : undefined;
+    const res = await apiClient.get<PaginatedResult<PrescriptionQueueItem>>("/pharmacy/dispensing/queue", {
+      params: queryParams,
+    });
     return res.data;
   },
 
-  getPrescriptionDispenseDetail: async (prescriptionId: string): Promise<PrescriptionDispenseDetail> => {
-    const res = await apiClient.get<PrescriptionDispenseDetail>(`/pharmacy/dispensing/prescriptions/${prescriptionId}`);
+  getPrescriptionDispenseDetail: async (
+    prescriptionId: string,
+    source?: PrescriptionSource
+  ): Promise<PrescriptionDispenseDetail> => {
+    const res = await apiClient.get<PrescriptionDispenseDetail>(
+      `/pharmacy/dispensing/prescriptions/${prescriptionId}`,
+      { params: source ? { source } : undefined }
+    );
+    return res.data;
+  },
+
+  resolvePrescriptionItem: async (
+    prescriptionId: string,
+    itemId: string,
+    data: ResolvePrescriptionItemData
+  ): Promise<PrescriptionDispenseDetail> => {
+    const res = await apiClient.post<PrescriptionDispenseDetail>(
+      `/pharmacy/dispensing/prescriptions/${prescriptionId}/items/${itemId}/resolve`,
+      data
+    );
     return res.data;
   },
 
@@ -951,6 +1051,11 @@ export const pharmacyApi = {
 
   getInvoice: async (id: string): Promise<PharmacyInvoice> => {
     const res = await apiClient.get<PharmacyInvoice>(`/pharmacy/invoices/${id}`);
+    return res.data;
+  },
+
+  collectInvoicePayment: async (id: string, data: CollectPharmacyPaymentData): Promise<PharmacyInvoice> => {
+    const res = await apiClient.post<PharmacyInvoice>(`/pharmacy/invoices/${id}/pay`, data);
     return res.data;
   },
 

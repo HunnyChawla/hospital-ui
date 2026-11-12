@@ -1,616 +1,1328 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
-  Clock,
-  User,
-  BedDouble,
-  Activity,
   AlertTriangle,
-  Pill,
-  Sparkles,
+  ShieldAlert,
   Receipt,
+  Building2,
+  Printer,
+  RefreshCw,
+  Search,
+  ExternalLink,
   RotateCcw,
+  CreditCard,
+  Eye,
+  BedDouble,
+  FileText,
+  Undo2,
 } from "lucide-react";
 import { PharmacyNav } from "@/components/pharmacy/PharmacyNav";
+import { PharmacyInvoiceModal } from "@/components/pharmacy/PharmacyInvoiceModal";
+import { Modal } from "@/components/common/Modal";
 import {
   pharmacyApi,
   PrescriptionDispenseDetail,
-  ConfirmDispensingData,
-  MedicineBatch,
+  PrescriptionDispenseMedicineItem,
+  PrescriptionSource,
+  PharmacyMedicine,
+  PharmacyInvoice,
+  DispensingResponse,
 } from "@/services/pharmacyApi";
+import { drugAllergyApi } from "@/services/drugAllergyApi";
+import { prescriptionsApi } from "@/services/prescriptionsApi";
+import type { DrugAllergyRecord } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 
-interface LineDispenseState {
+interface DispenseLineState {
   prescription_item_id: string;
-  medicine_id: string;
-  medicine_name: string;
-  selected_batch_id: string;
-  fefo_batch_id: string;
+  medicine_id: string | null;
+  batch_id: string;
   quantity: number;
   unit_price: number;
   discount: number;
   tax_rate: number;
   override_reason: string;
-  should_dispense: boolean;
+  is_fefo: boolean;
+  fefo_batch_id: string;
 }
 
-function WorkspaceContent() {
-  const router = useRouter();
+function DispensingWorkspaceContent() {
   const searchParams = useSearchParams();
-  const prescriptionId = searchParams.get("prescription_id") || "";
+  const router = useRouter();
+  const rxId = searchParams.get("rxId");
+  const sourceParam = searchParams.get("source") as PrescriptionSource | null;
 
   const [detail, setDetail] = useState<PrescriptionDispenseDetail | null>(null);
-  const [lineStates, setLineStates] = useState<Record<string, LineDispenseState>>({});
-  const [notes, setNotes] = useState("");
+  const [allergies, setAllergies] = useState<DrugAllergyRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [dispensing, setDispensing] = useState(false);
+  const [printingRx, setPrintingRx] = useState(false);
 
-  const loadPrescription = async () => {
-    if (!prescriptionId) {
-      setLoading(false);
-      return;
-    }
+  const [notes, setNotes] = useState("");
+  const [lineItems, setLineItems] = useState<Record<string, DispenseLineState>>({});
+
+  // Substitute Medicine Modal
+  const [subTargetItem, setSubTargetItem] = useState<PrescriptionDispenseMedicineItem | null>(null);
+  const [medSearch, setMedSearch] = useState("");
+  const [medResults, setMedResults] = useState<PharmacyMedicine[]>([]);
+  const [searchingMeds, setSearchingMeds] = useState(false);
+  const [subReason, setSubReason] = useState("");
+  const [resolvingItem, setResolvingItem] = useState(false);
+
+  // External / Skip Reason Modal
+  const [extTarget, setExtTarget] = useState<{
+    item: PrescriptionDispenseMedicineItem;
+    action: "external" | "skipped";
+  } | null>(null);
+  const [extReason, setExtReason] = useState("");
+
+  // Reverse Session Modal
+  const [reverseTarget, setReverseTarget] = useState<DispensingResponse | null>(null);
+  const [reverseReason, setReverseReason] = useState("");
+  const [reversing, setReversing] = useState(false);
+
+  // Invoice & Instant Payment Collection after OPD Dispensing
+  const [activeInvoice, setActiveInvoice] = useState<PharmacyInvoice | null>(null);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payRef, setPayRef] = useState("");
+  const [collectingPay, setCollectingPay] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
+    if (!rxId) return;
     try {
       setLoading(true);
-      const res = await pharmacyApi.getPrescriptionDispenseDetail(prescriptionId);
+      const res = await pharmacyApi.getPrescriptionDispenseDetail(rxId, sourceParam || undefined);
       setDetail(res);
 
-      // Initialize line states
-      const initialStates: Record<string, LineDispenseState> = {};
-      res.medicines.forEach((med) => {
-        const availableBatches = med.available_batches || (med as any).suggested_batches || [];
-        const fefoBatch = med.fefo_batch || availableBatches[0];
-        const remQty = Number(med.remaining_quantity);
-        const availStock = Number(med.total_available_stock ?? (med as any).available_stock ?? 0);
-        const hasStock = availStock > 0 && fefoBatch;
-        const bId = fefoBatch?.id || (fefoBatch as any)?.batch_id || "";
+      // Load clinical allergy warnings non-blockingly
+      if (res.patient_id) {
+        drugAllergyApi
+          .list({ patient_id: res.patient_id, page_size: 50 })
+          .then((aRes) => setAllergies(aRes.items || []))
+          .catch(() => setAllergies([]));
+      }
 
-        initialStates[med.prescription_item_id] = {
-          prescription_item_id: med.prescription_item_id,
-          medicine_id: med.medicine_id,
-          medicine_name: med.medicine_name,
-          selected_batch_id: bId,
-          fefo_batch_id: bId,
-          quantity: hasStock ? Math.min(remQty, Number(fefoBatch.qty_available)) : 0,
-          unit_price: Number(fefoBatch?.selling_price || fefoBatch?.mrp || 0),
-          discount: 0,
-          tax_rate: 12,
-          override_reason: "",
-          should_dispense: remQty > 0 && !!hasStock,
-        };
-      });
-      setLineStates(initialStates);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(getErrorMessage(err) || "Failed to load prescription dispensing details");
+      const initialLines: Record<string, DispenseLineState> = {};
+      for (const m of res.medicines) {
+        const effectiveMedId = m.substituted_medicine_id || m.medicine_id;
+        const isClosedExternally =
+          m.dispense_status === "external" || m.dispense_status === "skipped";
+        if (m.remaining_quantity > 0 && !isClosedExternally && effectiveMedId && m.available_batches.length > 0) {
+          const fefo = m.fefo_batch || m.available_batches[0];
+          const maxCanDispense = Math.min(m.remaining_quantity, fefo.qty_available);
+          initialLines[m.prescription_item_id] = {
+            prescription_item_id: m.prescription_item_id,
+            medicine_id: effectiveMedId,
+            batch_id: fefo.id,
+            quantity: maxCanDispense,
+            unit_price: Number(fefo.selling_price || fefo.mrp || 0),
+            discount: 0,
+            tax_rate: Number(m.tax_rate ?? 0),
+            override_reason: "",
+            is_fefo: true,
+            fefo_batch_id: fefo.id,
+          };
+        }
+      }
+      setLineItems(initialLines);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to load prescription details");
     } finally {
       setLoading(false);
     }
-  };
+  }, [rxId, sourceParam]);
 
   useEffect(() => {
-    loadPrescription();
-  }, [prescriptionId]);
+    fetchDetail();
+  }, [fetchDetail]);
 
-  const handleBatchChange = (
-    prescriptionItemId: string,
-    batchId: string,
-    availableBatches: any[]
+  useEffect(() => {
+    if (!subTargetItem) return;
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        setSearchingMeds(true);
+        const res = await pharmacyApi.listMedicines({
+          search: medSearch.trim() || undefined,
+          is_active: true,
+          page: 1,
+          page_size: 20,
+        });
+        if (active) setMedResults(res.items);
+      } catch {
+        if (active) setMedResults([]);
+      } finally {
+        if (active) setSearchingMeds(false);
+      }
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [subTargetItem, medSearch]);
+
+  const handleBatchChange = (med: PrescriptionDispenseMedicineItem, batchId: string) => {
+    const selectedBatch = med.available_batches.find((b) => b.id === batchId);
+    if (!selectedBatch) return;
+    const existing = lineItems[med.prescription_item_id];
+    const fefoId = existing?.fefo_batch_id || med.available_batches[0]?.id || "";
+    const maxCan = Math.min(med.remaining_quantity, selectedBatch.qty_available);
+
+    setLineItems((prev) => ({
+      ...prev,
+      [med.prescription_item_id]: {
+        prescription_item_id: med.prescription_item_id,
+        medicine_id: med.substituted_medicine_id || med.medicine_id,
+        batch_id: batchId,
+        quantity: maxCan,
+        unit_price: Number(selectedBatch.selling_price || selectedBatch.mrp || 0),
+        discount: existing?.discount ?? 0,
+        tax_rate: Number(med.tax_rate ?? 0),
+        override_reason: batchId === fefoId ? "" : existing?.override_reason || "",
+        is_fefo: batchId === fefoId,
+        fefo_batch_id: fefoId,
+      },
+    }));
+  };
+
+  const handleFieldChange = (
+    itemId: string,
+    field: "quantity" | "discount" | "override_reason" | "unit_price",
+    value: number | string
   ) => {
-    const batch = (availableBatches || []).find((b: any) => (b.id || b.batch_id) === batchId);
-    if (!batch) return;
-
-    setLineStates((prev) => {
-      const cur = prev[prescriptionItemId];
-      const isOverride = batchId !== cur.fefo_batch_id;
+    setLineItems((prev) => {
+      const current = prev[itemId];
+      if (!current) return prev;
       return {
         ...prev,
-        [prescriptionItemId]: {
-          ...cur,
-          selected_batch_id: batchId,
-          unit_price: Number(batch.selling_price || batch.mrp || 0),
-          quantity: Math.min(cur.quantity || 1, Number(batch.qty_available)),
-          override_reason: isOverride ? cur.override_reason : "",
+        [itemId]: {
+          ...current,
+          [field]: value,
         },
       };
     });
   };
 
-  const handleQtyChange = (prescriptionItemId: string, qty: number, maxStock: number) => {
-    setLineStates((prev) => ({
-      ...prev,
-      [prescriptionItemId]: {
-        ...prev[prescriptionItemId],
-        quantity: Math.max(0, Math.min(qty, maxStock)),
-      },
-    }));
+  const handleSubstituteSelect = async (catalogMed: PharmacyMedicine) => {
+    if (!detail || !subTargetItem) return;
+    try {
+      setResolvingItem(true);
+      await pharmacyApi.resolvePrescriptionItem(detail.prescription_id, subTargetItem.prescription_item_id, {
+        source: detail.source || sourceParam || "general",
+        action: "substitute",
+        substituted_medicine_id: catalogMed.id,
+        reason: subReason.trim() || `Mapped to ${catalogMed.name}`,
+      });
+      toast.success(`Mapped "${subTargetItem.medicine_name}" to "${catalogMed.name}"`);
+      setSubTargetItem(null);
+      setSubReason("");
+      await fetchDetail();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to substitute medicine");
+    } finally {
+      setResolvingItem(false);
+    }
   };
 
-  const handleToggleDispense = (prescriptionItemId: string) => {
-    setLineStates((prev) => ({
-      ...prev,
-      [prescriptionItemId]: {
-        ...prev[prescriptionItemId],
-        should_dispense: !prev[prescriptionItemId].should_dispense,
-      },
-    }));
+  const handleExternalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!detail || !extTarget) return;
+    try {
+      setResolvingItem(true);
+      await pharmacyApi.resolvePrescriptionItem(detail.prescription_id, extTarget.item.prescription_item_id, {
+        source: detail.source || sourceParam || "general",
+        action: extTarget.action,
+        reason: extReason.trim() || (extTarget.action === "external" ? "Purchased outside" : "Not required"),
+      });
+      toast.success(
+        extTarget.action === "external" ? "Marked as Dispensed Externally" : "Marked as Not Required / Skipped"
+      );
+      setExtTarget(null);
+      setExtReason("");
+      await fetchDetail();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to update item status");
+    } finally {
+      setResolvingItem(false);
+    }
   };
 
-  const handleOverrideReasonChange = (prescriptionItemId: string, reason: string) => {
-    setLineStates((prev) => ({
-      ...prev,
-      [prescriptionItemId]: {
-        ...prev[prescriptionItemId],
-        override_reason: reason,
-      },
-    }));
+  const handleResetItem = async (item: PrescriptionDispenseMedicineItem) => {
+    if (!detail) return;
+    try {
+      setResolvingItem(true);
+      await pharmacyApi.resolvePrescriptionItem(detail.prescription_id, item.prescription_item_id, {
+        source: detail.source || sourceParam || "general",
+        action: "reset",
+      });
+      toast.success("Item resolution reset");
+      await fetchDetail();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to reset item");
+    } finally {
+      setResolvingItem(false);
+    }
   };
 
-  // Summary calculations
+  const handlePrintPrescription = async () => {
+    if (!detail) return;
+    if ((detail.source || "general") !== "general") {
+      window.print();
+      return;
+    }
+    try {
+      setPrintingRx(true);
+      const blob = await prescriptionsApi.getPrintPdf(detail.prescription_id);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to open prescription PDF");
+    } finally {
+      setPrintingRx(false);
+    }
+  };
+
   const calculateTotals = () => {
     let subtotal = 0;
     let totalTax = 0;
+    let totalDiscount = 0;
+    let grandTotal = 0;
 
-    Object.values(lineStates).forEach((item) => {
-      if (!item.should_dispense || item.quantity <= 0) return;
-      const lineGross = item.quantity * item.unit_price;
-      const lineNet = Math.max(0, lineGross - item.discount);
-      const lineTax = (lineNet * item.tax_rate) / 100;
-      subtotal += lineNet;
-      totalTax += lineTax;
+    Object.values(lineItems).forEach((item) => {
+      if (item.quantity > 0 && item.batch_id) {
+        const lineGross = item.quantity * item.unit_price;
+        const appliedDiscount = Math.min(lineGross, Math.max(0, item.discount || 0));
+        const net = Math.max(0, lineGross - appliedDiscount);
+        const tax = (net * item.tax_rate) / 100;
+        subtotal += net;
+        totalDiscount += appliedDiscount;
+        totalTax += tax;
+        grandTotal += net + tax;
+      }
     });
 
-    const grandTotal = subtotal + totalTax;
-    return { subtotal, totalTax, grandTotal };
+    return { subtotal, totalTax, totalDiscount, grandTotal };
   };
-
-  const totals = calculateTotals();
 
   const handleConfirmDispensing = async () => {
     if (!detail) return;
 
-    const itemsToDispense = Object.values(lineStates).filter(
-      (it) => it.should_dispense && it.quantity > 0
+    const itemsToSubmit = Object.values(lineItems).filter(
+      (i) => i.quantity > 0 && i.batch_id && i.medicine_id
     );
-
-    if (itemsToDispense.length === 0) {
-      toast.error("Please select at least one medicine with quantity > 0 to dispense");
+    if (itemsToSubmit.length === 0) {
+      toast.error("Select at least one in-stock medicine with quantity > 0, or mark items External/Skipped.");
       return;
     }
 
-    // Verify FEFO override reason if non-FEFO batch chosen
-    for (const item of itemsToDispense) {
-      if (
-        item.fefo_batch_id &&
-        item.selected_batch_id !== item.fefo_batch_id &&
-        !item.override_reason.trim()
-      ) {
-        toast.error(
-          `Please provide a batch override reason for ${item.medicine_name} since a different batch was selected.`
-        );
+    for (const item of itemsToSubmit) {
+      if (!item.is_fefo && !item.override_reason.trim()) {
+        const med = detail.medicines.find((m) => m.prescription_item_id === item.prescription_item_id);
+        toast.error(`Provide a FEFO override reason for "${med?.medicine_name || "medicine"}".`);
         return;
       }
     }
 
     try {
-      setSubmitting(true);
-      const payload: ConfirmDispensingData = {
+      setDispensing(true);
+      const result = await pharmacyApi.confirmDispensing({
         prescription_id: detail.prescription_id,
+        prescription_source: detail.source || sourceParam || "general",
         patient_id: detail.patient_id,
         visit_id: detail.visit_id,
         admission_id: detail.admission_id,
-        notes: notes || undefined,
-        idempotency_key: `disp-${detail.prescription_id}-${Date.now()}`,
-        items: itemsToDispense.map((it) => ({
-          prescription_item_id: it.prescription_item_id,
-          medicine_id: it.medicine_id,
-          batch_id: it.selected_batch_id,
-          quantity: it.quantity,
-          unit_price: it.unit_price,
-          discount: it.discount,
-          tax_rate: it.tax_rate,
-          batch_override_reason: it.override_reason || undefined,
+        notes: notes.trim() || undefined,
+        idempotency_key: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `disp-${Date.now()}`,
+        items: itemsToSubmit.map((i) => ({
+          prescription_item_id: i.prescription_item_id,
+          medicine_id: i.medicine_id as string,
+          batch_id: i.batch_id,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          discount: i.discount || 0,
+          tax_rate: i.tax_rate,
+          batch_override_reason: !i.is_fefo ? i.override_reason.trim() : undefined,
         })),
-      };
+      });
 
-      const result = await pharmacyApi.confirmDispensing(payload);
+      toast.success(
+        detail.encounter_type === "IPD"
+          ? "Dispensed successfully & posted to IPD Admission Charges!"
+          : `Dispensed successfully! Invoice ${result.invoice_number || ""} created.`
+      );
 
-      if (detail.encounter_type === "IPD") {
-        toast.success(
-          `Medicines dispensed! Charges of ₹${result.total_amount.toFixed(2)} posted directly to IPD admission account.`
-        );
-      } else {
-        toast.success(
-          `Medicines dispensed! Invoice ${result.invoice_number || ""} generated successfully.`
-        );
+      if (result.invoice_id) {
+        try {
+          const inv = await pharmacyApi.getInvoice(result.invoice_id);
+          setActiveInvoice(inv);
+          setPayAmount(Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount ?? 0)).toFixed(2));
+          setPayModalOpen(true);
+        } catch {
+          // Non-blocking
+        }
       }
 
-      router.push("/pharmacy/dispensing");
-    } catch (err: any) {
-      console.error(err);
+      await fetchDetail();
+    } catch (err: unknown) {
       toast.error(getErrorMessage(err) || "Failed to confirm dispensing");
     } finally {
-      setSubmitting(false);
+      setDispensing(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <PharmacyNav />
-        <div className="py-20 text-center text-slate-400">Loading prescription workspace...</div>
-      </div>
-    );
-  }
+  const handleQuickPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeInvoice) return;
+    const amt = Number(payAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    try {
+      setCollectingPay(true);
+      const updated = await pharmacyApi.collectInvoicePayment(activeInvoice.id, {
+        amount: amt,
+        payment_method: payMethod,
+        payment_reference: payRef.trim() || undefined,
+      });
+      setActiveInvoice(updated);
+      setPayModalOpen(false);
+      setInvoiceModalOpen(true);
+      toast.success(`Payment ₹${amt.toFixed(2)} collected for ${updated.invoice_number}`);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Payment collection failed");
+    } finally {
+      setCollectingPay(false);
+    }
+  };
 
-  if (!detail) {
-    return (
-      <div className="space-y-4">
-        <PharmacyNav />
-        <div className="py-20 text-center text-slate-400">Prescription not found or invalid prescription ID.</div>
-      </div>
-    );
-  }
+  const handleReverseSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reverseTarget || reverseReason.trim().length < 3) {
+      toast.error("Enter a reversal reason (min 3 characters)");
+      return;
+    }
+    try {
+      setReversing(true);
+      await pharmacyApi.reverseDispensing(reverseTarget.id, reverseReason.trim());
+      toast.success("Dispensing reversed and batch stock restored");
+      setReverseTarget(null);
+      setReverseReason("");
+      await fetchDetail();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to reverse dispensing");
+    } finally {
+      setReversing(false);
+    }
+  };
+
+  const totals = calculateTotals();
+  const hasDeliverableItems = Object.values(lineItems).some((i) => i.quantity > 0 && i.batch_id);
+  const severeAllergies = allergies.filter((a) => a.severity === "severe");
 
   return (
     <div className="space-y-4">
-      {/* Top Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link
-            href="/pharmacy/dispensing"
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50 transition"
+          <button
+            type="button"
+            onClick={() => router.push("/pharmacy/dispensing")}
+            aria-label="Back to dispensing queue"
+            className="rounded-xl border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600 transition cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
-          </Link>
+          </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">Dispense Prescription</h1>
-              <span className="font-mono text-sm text-slate-500 font-medium">
-                {detail.prescription_number}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500">
-              Prescribed by {detail.doctor_name || "Doctor"} on {new Date(detail.prescription_date).toLocaleDateString()}
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Dispensing Workspace</h1>
+            <p className="text-sm text-slate-600">
+              FEFO batch verification, substitution/external handling, and atomic billing
             </p>
           </div>
         </div>
 
-        {/* Encounter Badge */}
-        <div>
-          {detail.encounter_type === "IPD" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-800">
-              <BedDouble className="h-4 w-4" />
-              IPD Inpatient
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">
-              <Activity className="h-4 w-4" />
-              OPD Outpatient
-            </span>
-          )}
-        </div>
+        {detail && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrintPrescription}
+              disabled={printingRx}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600 transition cursor-pointer disabled:opacity-50"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              {printingRx ? "Opening Rx..." : "Print Prescription"}
+            </button>
+          </div>
+        )}
       </div>
 
       <PharmacyNav />
 
-      {/* Patient Profile Card & Encounter Notice */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-          <div>
-            <span className="text-slate-400 block">Patient Name</span>
-            <span className="font-semibold text-slate-900 text-sm">{detail.patient_name}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block">UHID</span>
-            <span className="font-mono font-medium text-slate-800">{detail.patient_uhid}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block">Age & Gender</span>
-            <span className="text-slate-700">
-              {detail.patient_age ? `${detail.patient_age} yrs` : "-"} / {detail.patient_gender || "-"}
-            </span>
-          </div>
-          <div>
-            <span className="text-slate-400 block">Contact Phone</span>
-            <span className="text-slate-700">{detail.patient_phone || "-"}</span>
-          </div>
+      {!rxId ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <p className="text-sm font-medium text-slate-600">No prescription ID selected.</p>
+          <button
+            type="button"
+            onClick={() => router.push("/pharmacy/dispensing")}
+            className="mt-3 rounded-xl bg-cyan-700 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-600 cursor-pointer"
+          >
+            Go to Dispensing Queue
+          </button>
         </div>
+      ) : loading || !detail ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500 text-sm">
+          Loading prescription details & FEFO stock availability...
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Drug Allergy Safety Alert */}
+          {allergies.length > 0 && (
+            <div
+              role="alert"
+              className={`rounded-2xl border p-4 flex items-start gap-3 ${
+                severeAllergies.length > 0
+                  ? "border-rose-300 bg-rose-50 text-rose-950"
+                  : "border-amber-300 bg-amber-50 text-amber-950"
+              }`}
+            >
+              <ShieldAlert
+                className={`h-5 w-5 shrink-0 mt-0.5 ${
+                  severeAllergies.length > 0 ? "text-rose-600" : "text-amber-700"
+                }`}
+              />
+              <div className="text-xs space-y-1">
+                <p className="font-bold uppercase tracking-wide">
+                  Patient Drug Allergy Alert ({allergies.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {allergies.map((a) => (
+                    <span
+                      key={a.id}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-semibold ${
+                        a.severity === "severe"
+                          ? "bg-rose-200/80 text-rose-950"
+                          : "bg-amber-200/70 text-amber-950"
+                      }`}
+                    >
+                      {a.drug_name}
+                      {a.reaction ? ` — ${a.reaction}` : ""} ({a.severity})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-        {/* Diagnosis if available */}
-        {detail.diagnosis && (
-          <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-            <span className="font-semibold text-slate-700">Diagnosis:</span> {detail.diagnosis}
-          </div>
-        )}
+          {/* Header Summary Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-mono text-sm font-bold text-slate-900">
+                  {detail.prescription_number}
+                </span>
+                <span
+                  className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
+                    detail.encounter_type === "IPD"
+                      ? "bg-indigo-100 text-indigo-800"
+                      : "bg-cyan-100 text-cyan-800"
+                  }`}
+                >
+                  {detail.encounter_type}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                  {detail.source === "optometry" ? (
+                    <>
+                      <Eye className="h-3 w-3" /> Eye / Optometry
+                    </>
+                  ) : detail.source === "ipd" ? (
+                    <>
+                      <BedDouble className="h-3 w-3" /> IPD Order
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-3 w-3" /> Clinic Rx
+                    </>
+                  )}
+                </span>
+              </div>
+              <p className="text-slate-600 tabular-nums">
+                Date:{" "}
+                {new Date(detail.prescription_date).toLocaleString("en-IN", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+              {(detail.admission_number || detail.ward_bed) && (
+                <p className="text-indigo-700 font-semibold">
+                  {detail.admission_number ? `#${detail.admission_number}` : ""}
+                  {detail.admission_number && detail.ward_bed ? " · " : ""}
+                  {detail.ward_bed || ""}
+                </p>
+              )}
+            </div>
 
-        {/* Billing Workflow Notice */}
-        {detail.encounter_type === "IPD" ? (
-          <div className="flex items-center gap-2 rounded-xl bg-purple-50 p-3 text-xs text-purple-800 border border-purple-200/60">
-            <BedDouble className="h-4 w-4 text-purple-600 shrink-0" />
-            <span>
-              <strong>IPD Integrated Billing:</strong> Dispensing confirmation will automatically post medicine charges to Admission account. Cash collection at the pharmacy counter is bypassed.
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-xl bg-sky-50 p-3 text-xs text-sky-800 border border-sky-200/60">
-            <Receipt className="h-4 w-4 text-sky-600 shrink-0" />
-            <span>
-              <strong>OPD Billing:</strong> Pharmacy sales invoice will be automatically generated upon dispensing confirmation.
-            </span>
-          </div>
-        )}
-      </div>
+            <div className="space-y-1">
+              <span className="text-slate-500 text-[11px] font-semibold uppercase tracking-wide block">
+                Patient
+              </span>
+              <span className="font-bold text-slate-900 text-sm block">{detail.patient_name}</span>
+              <span className="text-slate-600 block">
+                <span className="font-mono font-semibold">{detail.patient_uhid}</span>
+                {detail.patient_age != null ? ` · ${detail.patient_age}y` : ""}
+                {detail.patient_gender ? ` · ${detail.patient_gender}` : ""}
+                {detail.patient_phone ? ` · ${detail.patient_phone}` : ""}
+              </span>
+            </div>
 
-      {/* Prescribed Medicines & FEFO Selection */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Prescribed Medicines ({detail.medicines.length})</h2>
+            <div className="space-y-1">
+              <span className="text-slate-500 text-[11px] font-semibold uppercase tracking-wide block">
+                Prescriber & Diagnosis
+              </span>
+              <span className="font-semibold text-slate-900 block">
+                {detail.doctor_name
+                  ? detail.doctor_name.startsWith("Dr.")
+                    ? detail.doctor_name
+                    : `Dr. ${detail.doctor_name}`
+                  : "Unassigned"}
+              </span>
+              <span className="text-slate-600 block">{detail.diagnosis || "No recorded diagnosis"}</span>
+              {detail.notes && <span className="text-slate-500 italic block">Note: {detail.notes}</span>}
+            </div>
 
-        <div className="space-y-3">
-          {detail.medicines.map((item) => {
-            const state = lineStates[item.prescription_item_id];
-            if (!state) return null;
-
-            const remQty = Number(item.remaining_quantity);
-            const isFullyDispensed = remQty <= 0;
-            const availableBatches = item.available_batches || (item as any).suggested_batches || [];
-            const availStock = Number(item.total_available_stock ?? (item as any).available_stock ?? 0);
-            const hasStock = availStock > 0;
-            const selectedBatch = availableBatches.find(
-              (b: any) => (b.id || b.batch_id) === state.selected_batch_id
-            );
-            const isOverridden = state.fefo_batch_id && state.selected_batch_id !== state.fefo_batch_id;
-
-            return (
-              <div
-                key={item.prescription_item_id}
-                className={`rounded-2xl border p-4 transition ${
-                  isFullyDispensed
-                    ? "bg-slate-50/50 border-slate-200/60 opacity-60"
-                    : state.should_dispense
-                    ? "bg-white border-sky-200 shadow-xs"
-                    : "bg-white border-slate-200"
+            <div className="space-y-1.5 sm:text-right">
+              <span className="text-slate-500 text-[11px] font-semibold uppercase tracking-wide block">
+                Dispensing Status
+              </span>
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                  detail.pharmacy_status === "dispensed"
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : detail.pharmacy_status === "partially_dispensed"
+                      ? "bg-cyan-50 text-cyan-800 border border-cyan-200"
+                      : "bg-amber-50 text-amber-800 border border-amber-200"
                 }`}
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Left: Prescribed Details */}
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      disabled={isFullyDispensed || !hasStock}
-                      checked={state.should_dispense}
-                      onChange={() => handleToggleDispense(item.prescription_item_id)}
-                      className="mt-1 h-4 w-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
-                    />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 text-sm">{item.medicine_name}</span>
-                        {item.generic_name && (
-                          <span className="text-xs text-slate-400">({item.generic_name})</span>
-                        )}
-                        {isFullyDispensed && (
-                          <span className="inline-flex items-center rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                            Fully Dispensed
-                          </span>
-                        )}
-                      </div>
+                {detail.pharmacy_status.replace(/_/g, " ")}
+              </span>
+            </div>
+          </div>
 
-                      {/* Dosage, Frequency, Instructions */}
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
-                        {item.dosage && <span>Dose: <strong>{item.dosage}</strong></span>}
-                        {item.frequency && <span>Freq: <strong>{item.frequency}</strong></span>}
-                        {item.duration && <span>Duration: <strong>{item.duration}</strong></span>}
-                        {item.instructions && <span>• {item.instructions}</span>}
-                      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Medicines Dispensing Table */}
+            <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900">
+                  Prescribed Medicines ({detail.medicines.length})
+                </h2>
+                <span className="text-[11px] font-medium text-slate-500">
+                  FEFO batch suggested · catalog GST applied
+                </span>
+              </div>
 
-                      {/* Prescribed vs Dispensed Metrics */}
-                      <div className="flex items-center gap-4 text-xs mt-2">
-                        <span className="text-slate-600">
-                          Prescribed: <strong>{item.prescribed_quantity}</strong>
-                        </span>
-                        <span className="text-slate-600">
-                          Dispensed: <strong>{item.dispensed_quantity}</strong>
-                        </span>
-                        <span className="text-sky-700 font-semibold">
-                          Remaining: {remQty}
-                        </span>
-                        <span className="text-slate-400">|</span>
-                        <span
-                          className={`font-medium ${
-                            hasStock ? "text-emerald-600" : "text-rose-600"
-                          }`}
-                        >
-                          Stock Available: {item.total_available_stock}
-                        </span>
-                      </div>
-                    </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Medicine & Instructions</th>
+                      <th className="py-2.5 px-3 text-center">Qty (Presc/Disp)</th>
+                      <th className="py-2.5 px-3">Batch (FEFO)</th>
+                      <th className="py-2.5 px-3 text-right">Dispense Qty</th>
+                      <th className="py-2.5 px-3 text-right">Rate / Disc / GST</th>
+                      <th className="py-2.5 px-3 text-right">Line Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {detail.medicines.map((med) => {
+                      const line = lineItems[med.prescription_item_id];
+                      const effectiveMedId = med.substituted_medicine_id || med.medicine_id;
+                      const isExternalOrSkipped =
+                        med.dispense_status === "external" || med.dispense_status === "skipped";
+                      const isDone = med.remaining_quantity === 0 || isExternalOrSkipped;
+                      const outOfStock = !effectiveMedId || med.available_batches.length === 0;
+                      const selectedBatch = line
+                        ? med.available_batches.find((b) => b.id === line.batch_id)
+                        : undefined;
+                      const maxSelectable = selectedBatch
+                        ? Math.min(med.remaining_quantity, selectedBatch.qty_available)
+                        : med.remaining_quantity;
+                      const lineNet = line
+                        ? Math.max(0, line.quantity * line.unit_price - (line.discount || 0))
+                        : 0;
+                      const lineTax = line ? (lineNet * line.tax_rate) / 100 : 0;
+                      const lineTotal = lineNet + lineTax;
+
+                      return (
+                        <tr key={med.prescription_item_id} className={isDone ? "bg-slate-50/60" : "hover:bg-slate-50/40"}>
+                          {/* Medicine & Clinical Instructions */}
+                          <td className="py-3 px-3 align-top max-w-[260px]">
+                            <div className="font-bold text-slate-900">{med.medicine_name}</div>
+                            {med.substituted_medicine_name && (
+                              <div className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-cyan-50 px-2 py-0.5 text-[11px] font-semibold text-cyan-800 border border-cyan-200">
+                                <RefreshCw className="h-3 w-3" />
+                                Sub: {med.substituted_medicine_name}
+                              </div>
+                            )}
+                            <div className="text-[11px] text-slate-600 mt-0.5 space-x-1.5">
+                              {med.generic_name && <span>{med.generic_name}</span>}
+                              {med.strength && <span>· {med.strength}</span>}
+                              {med.form && <span>· {med.form}</span>}
+                              {med.applicable_eye && (
+                                <span className="inline-flex rounded bg-violet-100 px-1.5 py-0.2 font-semibold text-violet-800">
+                                  Eye: {med.applicable_eye}
+                                </span>
+                              )}
+                              {med.schedule && (
+                                <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.2 font-semibold text-amber-900">
+                                  Sch {med.schedule}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-700 mt-1">
+                              {[med.dosage, med.frequency, med.timing, med.duration]
+                                .filter(Boolean)
+                                .join(" · ") || "As directed"}
+                              {med.prescribed_quantity_text && (
+                                <span className="ml-1.5 font-semibold text-slate-800">
+                                  ({med.prescribed_quantity_text})
+                                </span>
+                              )}
+                            </div>
+                            {med.is_prn && (
+                              <span className="mt-1 inline-flex rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                                PRN / SOS{med.prn_reason ? `: ${med.prn_reason}` : ""}
+                              </span>
+                            )}
+                            {(med.instructions || med.special_instructions) && (
+                              <div className="text-[11px] text-slate-500 mt-0.5">
+                                {med.instructions || med.special_instructions}
+                              </div>
+                            )}
+                            {med.external_reason && (
+                              <div className="text-[11px] text-slate-500 italic mt-0.5">
+                                Reason: {med.external_reason}
+                              </div>
+                            )}
+
+                            {/* Substitute / External / Reset controls */}
+                            {!isDone && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSubTargetItem(med);
+                                    setMedSearch(med.generic_name || med.medicine_name.split(" ")[0] || "");
+                                    setSubReason("");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-800 hover:bg-cyan-100 transition cursor-pointer"
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                  {med.substituted_medicine_id ? "Change Sub" : "Map / Substitute"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExtTarget({ item: med, action: "external" });
+                                    setExtReason(outOfStock ? "Out of stock / purchase externally" : "Patient buying outside");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  External
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExtTarget({ item: med, action: "skipped" });
+                                    setExtReason("Not required by patient");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                                >
+                                  Skip
+                                </button>
+                              </div>
+                            )}
+                            {isExternalOrSkipped && (
+                              <button
+                                type="button"
+                                disabled={resolvingItem}
+                                onClick={() => handleResetItem(med)}
+                                className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-700 hover:underline cursor-pointer"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                Reopen Item
+                              </button>
+                            )}
+                          </td>
+
+                          {/* Prescribed / Dispensed */}
+                          <td className="py-3 px-3 align-top text-center font-mono tabular-nums whitespace-nowrap">
+                            <span className="font-bold text-slate-900">{med.prescribed_quantity}</span>
+                            {" / "}
+                            <span className="text-emerald-700 font-semibold">{med.dispensed_quantity}</span>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              {isExternalOrSkipped ? (
+                                <span className="uppercase font-bold text-slate-600">
+                                  {med.dispense_status}
+                                </span>
+                              ) : (
+                                `Rem: ${med.remaining_quantity}`
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Batch Selection */}
+                          <td className="py-3 px-3 align-top min-w-[205px]">
+                            {isExternalOrSkipped ? (
+                              <span className="inline-flex rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 uppercase">
+                                {med.dispense_status === "external" ? "Dispensed Externally" : "Skipped"}
+                              </span>
+                            ) : med.remaining_quantity === 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="h-3 w-3" /> Fully Dispensed
+                              </span>
+                            ) : outOfStock ? (
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800 border border-rose-200">
+                                <AlertTriangle className="h-3 w-3 shrink-0" />
+                                {!effectiveMedId ? "Unlinked — Map Catalog Medicine" : "Out of Stock"}
+                              </span>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <select
+                                  aria-label={`Select batch for ${med.medicine_name}`}
+                                  value={line?.batch_id || ""}
+                                  onChange={(e) => handleBatchChange(med, e.target.value)}
+                                  className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
+                                >
+                                  {med.available_batches.map((b, bIdx) => (
+                                    <option key={b.id} value={b.id}>
+                                      {b.batch_number} {bIdx === 0 ? "(FEFO)" : ""} · Exp: {b.expiry_date} · Qty: {b.qty_available}
+                                    </option>
+                                  ))}
+                                </select>
+                                {line && !line.is_fefo && (
+                                  <input
+                                    type="text"
+                                    placeholder="FEFO override reason (required)"
+                                    value={line.override_reason}
+                                    onChange={(e) =>
+                                      handleFieldChange(med.prescription_item_id, "override_reason", e.target.value)
+                                    }
+                                    className="w-full rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-950 focus:border-amber-500 focus:outline-none"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Dispense Qty */}
+                          <td className="py-3 px-3 align-top text-right">
+                            {!isDone && !outOfStock && line ? (
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                max={maxSelectable}
+                                aria-label={`Quantity to dispense for ${med.medicine_name}`}
+                                value={line.quantity}
+                                onChange={(e) => {
+                                  const raw = Number(e.target.value);
+                                  const clamped = Number.isFinite(raw)
+                                    ? Math.min(maxSelectable, Math.max(0, raw))
+                                    : 0;
+                                  handleFieldChange(med.prescription_item_id, "quantity", clamped);
+                                }}
+                                className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-xs font-bold tabular-nums focus:border-cyan-600 focus:outline-none"
+                              />
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+
+                          {/* Rate / Discount / GST */}
+                          <td className="py-3 px-3 align-top text-right tabular-nums whitespace-nowrap">
+                            {!isDone && !outOfStock && line ? (
+                              <div className="space-y-1">
+                                <div className="font-semibold text-slate-800">
+                                  ₹{line.unit_price.toFixed(2)}
+                                </div>
+                                <div className="flex items-center justify-end gap-1 text-[10px] text-slate-500">
+                                  <span>Disc ₹</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    aria-label={`Discount for ${med.medicine_name}`}
+                                    value={line.discount}
+                                    onChange={(e) =>
+                                      handleFieldChange(
+                                        med.prescription_item_id,
+                                        "discount",
+                                        Math.max(0, Number(e.target.value) || 0)
+                                      )
+                                    }
+                                    className="w-14 rounded border border-slate-300 px-1 py-0.5 text-right text-[11px]"
+                                  />
+                                </div>
+                                <div className="text-[10px] text-slate-500">GST {line.tax_rate.toFixed(1)}%</div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+
+                          {/* Line Total */}
+                          <td className="py-3 px-3 align-top text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                            {!isDone && !outOfStock && line && line.quantity > 0 ? (
+                              `₹${lineTotal.toFixed(2)}`
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Summary & Confirm Panel */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-5">
+              <div className="space-y-4">
+                <h2 className="text-base font-bold text-slate-900">Summary & Checkout</h2>
+
+                {/* Encounter Billing Indicator */}
+                <div
+                  className={`rounded-xl p-3 flex items-start gap-2.5 text-xs ${
+                    detail.encounter_type === "IPD"
+                      ? "bg-indigo-50 border border-indigo-200 text-indigo-900"
+                      : "bg-cyan-50 border border-cyan-200 text-cyan-900"
+                  }`}
+                >
+                  {detail.encounter_type === "IPD" ? (
+                    <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-indigo-700" />
+                  ) : (
+                    <Receipt className="h-4 w-4 shrink-0 mt-0.5 text-cyan-700" />
+                  )}
+                  <div>
+                    <p className="font-bold">
+                      {detail.encounter_type === "IPD"
+                        ? "IPD Admission Charge Posting"
+                        : "OPD Retail Pharmacy Billing"}
+                    </p>
+                    <p className="text-[11px] opacity-90 mt-0.5">
+                      {detail.encounter_type === "IPD"
+                        ? "Charges post directly to the patient's running inpatient admission ledger."
+                        : "Generates a Pharmacy Invoice with immediate payment collection option."}
+                    </p>
                   </div>
-
-                  {/* Right: Batch Selection (FEFO) & Quantity */}
-                  {!isFullyDispensed && hasStock && state.should_dispense && (
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                      {/* Batch Selector */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[11px] font-medium text-slate-600">
-                            Batch (FEFO Ordered)
-                          </label>
-                          {state.selected_batch_id === state.fefo_batch_id && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-teal-700">
-                              <Sparkles className="h-3 w-3" />
-                              FEFO
-                            </span>
-                          )}
-                        </div>
-                        <select
-                          value={state.selected_batch_id}
-                          onChange={(e) =>
-                            handleBatchChange(
-                              item.prescription_item_id,
-                              e.target.value,
-                              availableBatches
-                            )
-                          }
-                          className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:border-sky-500 focus:outline-hidden"
-                        >
-                          {availableBatches.map((b: any) => {
-                            const bId = b.id || b.batch_id;
-                            return (
-                              <option key={bId} value={bId}>
-                                {b.batch_number} (Exp: {b.expiry_date}, Avail: {b.qty_available}, MRP: ₹{b.mrp})
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-
-                      {/* Dispense Qty Input */}
-                      <div>
-                        <label className="text-[11px] font-medium text-slate-600 block mb-1">
-                          Qty to Dispense
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={Math.min(remQty, Number(selectedBatch?.qty_available || remQty))}
-                          value={state.quantity}
-                          onChange={(e) =>
-                            handleQtyChange(
-                              item.prescription_item_id,
-                              Number(e.target.value),
-                              Number(selectedBatch?.qty_available || remQty)
-                            )
-                          }
-                          className="w-20 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs text-center font-bold text-slate-900 focus:border-sky-500 focus:outline-hidden"
-                        />
-                      </div>
-
-                      {/* Line Total */}
-                      <div className="text-right sm:min-w-[80px]">
-                        <span className="text-[11px] text-slate-400 block">Total</span>
-                        <span className="text-xs font-bold text-slate-900">
-                          ₹{(state.quantity * state.unit_price).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {!hasStock && !isFullyDispensed && (
-                    <div className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 border border-rose-200">
-                      Out of Stock! Cannot dispense.
-                    </div>
-                  )}
                 </div>
 
-                {/* Batch Override Reason Input (if non-FEFO batch chosen) */}
-                {isOverridden && state.should_dispense && (
-                  <div className="mt-3 pt-3 border-t border-amber-200/60 bg-amber-50/50 p-2.5 rounded-xl">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 mb-1">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      FEFO Batch Override Detected
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      value={state.override_reason}
-                      onChange={(e) =>
-                        handleOverrideReasonChange(item.prescription_item_id, e.target.value)
-                      }
-                      placeholder="Enter pharmacist override reason (e.g. Doctor specifically requested this batch / emergency dispense)"
-                      className="w-full rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-hidden"
-                    />
+                {/* Price Totals */}
+                <div className="space-y-2 border-t border-b border-slate-100 py-3 text-xs tabular-nums">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Taxable Subtotal</span>
+                    <span className="font-semibold text-slate-900">₹{totals.subtotal.toFixed(2)}</span>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  {totals.totalDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Discount Applied</span>
+                      <span className="font-semibold">-₹{totals.totalDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-600">
+                    <span>Total GST Tax</span>
+                    <span className="font-semibold text-slate-900">₹{totals.totalTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold text-slate-900 pt-1">
+                    <span>Grand Payable</span>
+                    <span className="text-cyan-800">₹{totals.grandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
 
-      {/* Confirmation & Summary Footer */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="sm:w-1/2">
-            <label className="block text-xs font-medium text-slate-700">Pharmacist Notes</label>
+                <div>
+                  <label htmlFor="dispense-notes" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Dispensing Remarks
+                  </label>
+                  <textarea
+                    id="dispense-notes"
+                    rows={2}
+                    placeholder="Counseling notes, storage advice, or remarks..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={dispensing || !hasDeliverableItems}
+                onClick={handleConfirmDispensing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-xs hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {dispensing ? "Processing Dispensing..." : "Confirm & Dispense"}
+              </button>
+            </div>
+          </div>
+
+          {/* Past Dispensing Sessions */}
+          {detail.past_dispensings && detail.past_dispensings.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              <h3 className="text-sm font-bold text-slate-900">
+                Past Dispensing Sessions ({detail.past_dispensings.length})
+              </h3>
+              <div className="divide-y divide-slate-100">
+                {detail.past_dispensings.map((session) => (
+                  <div
+                    key={session.id}
+                    className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold text-slate-800">
+                          {new Date(session.dispensed_at).toLocaleString("en-IN", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            session.status === "reversed"
+                              ? "bg-rose-50 text-rose-800 border border-rose-200"
+                              : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          }`}
+                        >
+                          {session.status}
+                        </span>
+                        {session.invoice_number && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!session.invoice_id) return;
+                              try {
+                                const inv = await pharmacyApi.getInvoice(session.invoice_id);
+                                setActiveInvoice(inv);
+                                setInvoiceModalOpen(true);
+                              } catch (err: unknown) {
+                                toast.error(getErrorMessage(err) || "Failed to load invoice");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 font-mono font-semibold text-cyan-800 hover:underline cursor-pointer"
+                          >
+                            <Receipt className="h-3 w-3" />
+                            {session.invoice_number}
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-slate-600">
+                        Dispensed by <span className="font-medium">{session.dispensed_by}</span> ·{" "}
+                        {session.items.map((it) => `${it.medicine_name} × ${it.quantity} (${it.batch_number})`).join(", ")}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right tabular-nums">
+                        <div className="font-bold text-slate-900">₹{Number(session.total_amount).toFixed(2)}</div>
+                        <div className="text-[11px] text-slate-500">Tax: ₹{Number(session.tax_amount).toFixed(2)}</div>
+                      </div>
+                      {session.status === "confirmed" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReverseTarget(session);
+                            setReverseReason("");
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                        >
+                          <Undo2 className="h-3 w-3" />
+                          Reverse
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Map / Substitute Medicine Modal */}
+      <Modal
+        isOpen={Boolean(subTargetItem)}
+        onClose={() => setSubTargetItem(null)}
+        title={`Map / Substitute: ${subTargetItem?.medicine_name || ""}`}
+        size="lg"
+      >
+        <div className="space-y-3 text-xs">
+          <p className="text-slate-600">
+            Select an active catalog medicine to fulfill this item and unlock FEFO batches.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search catalog by brand or generic name..."
+                value={medSearch}
+                onChange={(e) => setMedSearch(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
+              />
+            </div>
             <input
               type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Patient advised to take after meals; explained dosage precautions"
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-hidden"
+              placeholder="Substitution reason (e.g. Generic equivalent)"
+              value={subReason}
+              onChange={(e) => setSubReason(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
             />
           </div>
 
-          <div className="space-y-1 text-xs text-slate-600 sm:w-64">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span className="font-medium text-slate-800">₹{totals.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Applicable Tax:</span>
-              <span className="font-medium text-slate-800">₹{totals.totalTax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
-              <span>Grand Total:</span>
-              <span className="text-sky-600">₹{totals.grandTotal.toFixed(2)}</span>
-            </div>
+          <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+            {searchingMeds ? (
+              <div className="p-6 text-center text-slate-500">Searching medicines...</div>
+            ) : medResults.length === 0 ? (
+              <div className="p-6 text-center text-slate-500">No catalog medicines found.</div>
+            ) : (
+              medResults.map((catMed) => (
+                <div
+                  key={catMed.id}
+                  className="p-3 flex items-center justify-between hover:bg-cyan-50/40 transition"
+                >
+                  <div>
+                    <div className="font-bold text-slate-900">{catMed.name}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {[catMed.generic_name, catMed.strength, catMed.dosage_form]
+                        .filter(Boolean)
+                        .join(" · ") || "Catalog Medicine"}
+                      {catMed.current_stock !== undefined && (
+                        <span
+                          className={`ml-2 font-semibold ${
+                            catMed.current_stock > 0 ? "text-emerald-700" : "text-rose-600"
+                          }`}
+                        >
+                          Stock: {catMed.current_stock}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={resolvingItem}
+                    onClick={() => handleSubstituteSelect(catMed)}
+                    className="rounded-lg bg-cyan-700 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-600 cursor-pointer disabled:opacity-50"
+                  >
+                    Select
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
+      </Modal>
 
-        <div className="flex items-center justify-end pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            disabled={submitting || totals.grandTotal <= 0}
-            onClick={handleConfirmDispensing}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md transition disabled:opacity-50 cursor-pointer"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {submitting ? "Processing Dispensing..." : "Confirm Dispensing & Update Stock"}
-          </button>
-        </div>
-      </div>
-
-      {/* Past Dispensing History for this Prescription */}
-      {detail.past_dispensings && detail.past_dispensings.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xs space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Past Dispensing Sessions on this Prescription</h3>
-          <div className="divide-y divide-slate-100">
-            {detail.past_dispensings.map((disp) => (
-              <div key={disp.id} className="py-3 flex items-center justify-between text-xs">
-                <div>
-                  <div className="font-medium text-slate-800">
-                    Dispensed by <span className="font-semibold">{disp.dispensed_by}</span> on{" "}
-                    {new Date(disp.dispensed_at).toLocaleString()}
-                  </div>
-                  <div className="text-slate-500 mt-1">
-                    {disp.items.map((it) => `${it.medicine_name} (${it.quantity} units, Batch ${it.batch_number})`).join(", ")}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-slate-900">₹{disp.total_amount.toFixed(2)}</div>
-                  {disp.invoice_number && (
-                    <span className="text-[11px] font-mono text-sky-600">Inv: {disp.invoice_number}</span>
-                  )}
-                </div>
-              </div>
-            ))}
+      {/* External / Skip Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(extTarget)}
+        onClose={() => setExtTarget(null)}
+        title={
+          extTarget?.action === "external"
+            ? "Mark as Dispensed Externally"
+            : "Mark Item Not Required / Skipped"
+        }
+        size="sm"
+      >
+        <form onSubmit={handleExternalSubmit} className="space-y-3 text-xs">
+          <p className="text-slate-600">
+            Medicine: <strong className="text-slate-900">{extTarget?.item.medicine_name}</strong>
+          </p>
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Reason / Note</label>
+            <input
+              type="text"
+              value={extReason}
+              onChange={(e) => setExtReason(e.target.value)}
+              placeholder="e.g. Patient will purchase outside"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
+            />
           </div>
-        </div>
-      )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setExtTarget(null)}
+              className="rounded-xl border border-slate-300 px-3.5 py-1.5 font-semibold text-slate-700 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={resolvingItem}
+              className="rounded-xl bg-cyan-700 px-3.5 py-1.5 font-semibold text-white hover:bg-cyan-600 cursor-pointer disabled:opacity-50"
+            >
+              Confirm
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Reverse Session Modal */}
+      <Modal
+        isOpen={Boolean(reverseTarget)}
+        onClose={() => setReverseTarget(null)}
+        title="Reverse Dispensing Session"
+        size="sm"
+      >
+        <form onSubmit={handleReverseSession} className="space-y-3 text-xs">
+          <p className="text-slate-600">
+            This will restore deducted batch stock to inventory and cancel the associated OPD invoice or IPD charge.
+          </p>
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Reversal Reason</label>
+            <input
+              type="text"
+              required
+              minLength={3}
+              value={reverseReason}
+              onChange={(e) => setReverseReason(e.target.value)}
+              placeholder="e.g. Wrong strength selected, patient declined"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setReverseTarget(null)}
+              className="rounded-xl border border-slate-300 px-3.5 py-1.5 font-semibold text-slate-700 cursor-pointer"
+            >
+              Back
+            </button>
+            <button
+              type="submit"
+              disabled={reversing}
+              className="rounded-xl bg-rose-600 px-3.5 py-1.5 font-semibold text-white hover:bg-rose-500 cursor-pointer disabled:opacity-50"
+            >
+              {reversing ? "Reversing..." : "Confirm Reversal"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Instant Payment Modal after OPD Dispensing */}
+      <Modal
+        isOpen={payModalOpen && Boolean(activeInvoice)}
+        onClose={() => setPayModalOpen(false)}
+        title={`Collect OPD Payment — ${activeInvoice?.invoice_number || ""}`}
+        size="md"
+      >
+        <form onSubmit={handleQuickPayment} className="space-y-4 text-xs">
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 flex items-center justify-between">
+            <span className="font-semibold text-emerald-900">
+              Invoice {activeInvoice?.invoice_number} Ready
+            </span>
+            <span className="font-mono font-bold text-emerald-900">
+              Total: ₹{activeInvoice ? Number(activeInvoice.total_amount).toFixed(2) : "0.00"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Amount Received (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold tabular-nums focus:border-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Payment Method</label>
+              <select
+                value={payMethod}
+                onChange={(e) => setPayMethod(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none"
+              >
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Transaction Reference</label>
+            <input
+              type="text"
+              placeholder="Optional UPI / Card Ref"
+              value={payRef}
+              onChange={(e) => setPayRef(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex flex-wrap justify-between gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setPayModalOpen(false);
+                setInvoiceModalOpen(true);
+              }}
+              className="rounded-xl border border-slate-300 px-3.5 py-2 font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              Skip & Print Unpaid Bill
+            </button>
+            <button
+              type="submit"
+              disabled={collectingPay}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-500 cursor-pointer disabled:opacity-50"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              {collectingPay ? "Saving..." : "Collect Payment & Print Receipt"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <PharmacyInvoiceModal
+        isOpen={invoiceModalOpen}
+        onClose={() => setInvoiceModalOpen(false)}
+        invoice={activeInvoice}
+        onCollectPayment={(inv) => {
+          setInvoiceModalOpen(false);
+          setActiveInvoice(inv);
+          setPayAmount(Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount ?? 0)).toFixed(2));
+          setPayModalOpen(true);
+        }}
+      />
     </div>
   );
 }
 
 export default function DispensingWorkspacePage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading dispensing workspace...</div>}>
-      <WorkspaceContent />
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-slate-500 text-sm">
+          Loading dispensing workspace...
+        </div>
+      }
+    >
+      <DispensingWorkspaceContent />
     </Suspense>
   );
 }
