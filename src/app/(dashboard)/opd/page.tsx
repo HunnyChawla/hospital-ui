@@ -7,16 +7,19 @@ import { AppointmentsList } from "@/components/opd/AppointmentsList";
 import { OpdList } from "@/components/opd/OpdList";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
-import { CalendarPlus, Stethoscope, RefreshCw } from "lucide-react";
+import { DoctorAppointmentQrModal } from "@/components/opd/DoctorAppointmentQrModal";
+import { CalendarPlus, Stethoscope, RefreshCw, QrCode } from "lucide-react";
 import { appointmentKeys } from "@/hooks/queries/useAppointments";
 import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 
 export default function OpdPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { enabled: abdmEnabled } = useAbdmFlags();
   const [activeTab, setActiveTab] = useState<"appointments" | "opd">("appointments");
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-
+  const [showDoctorQrModal, setShowDoctorQrModal] = useState(false);
   const [showOpdModal, setShowOpdModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -109,13 +112,25 @@ export default function OpdPage() {
                   <p className="text-sm font-semibold text-slate-900">Appointments List</p>
                   <p className="text-xs text-slate-500">View and manage patient appointments</p>
                 </div>
-                <button
-                  onClick={() => setShowAppointmentModal(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow sm:w-auto"
-                >
-                  <CalendarPlus className="h-4 w-4" />
-                  Book Appointment
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  {abdmEnabled && (
+                    <button
+                      onClick={() => setShowDoctorQrModal(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 shadow-2xs transition hover:bg-sky-100 hover:border-sky-300 sm:w-auto"
+                      title="View ABDM Scan & Share QR code for doctor appointments"
+                    >
+                      <QrCode className="h-4 w-4 text-sky-600" />
+                      <span>Scan & Share QR</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowAppointmentModal(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow sm:w-auto"
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                    Book Appointment
+                  </button>
+                </div>
               </div>
               <AppointmentsList />
             </div>
@@ -143,6 +158,11 @@ export default function OpdPage() {
       </div>
 
       {/* Modals */}
+      <DoctorAppointmentQrModal
+        isOpen={showDoctorQrModal}
+        onClose={() => setShowDoctorQrModal(false)}
+      />
+
       <AppointmentFormModal
         isOpen={showAppointmentModal}
         onClose={() => setShowAppointmentModal(false)}

@@ -99,6 +99,44 @@ export const countersApi = {
     await apiClient.delete(`/patients/intake/counters/${counterId}`, { params });
   },
 
+  /** Get or auto-provision an active counter for a doctor. */
+  async getDoctorCounter(doctorId: string, tenantId?: string): Promise<CounterResponse> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<CounterResponse>(
+      `/patients/intake/counters/doctor/${encodeURIComponent(doctorId)}`,
+      { params }
+    );
+    return response.data;
+  },
+
+  /** The QR image for a doctor, as a blob. */
+  async doctorQrPng(doctorId: string, tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(
+      `/abha/counters/doctor/${encodeURIComponent(doctorId)}/qr`,
+      { params, responseType: "blob" }
+    );
+    return response.data;
+  },
+
+  /** What the doctor's QR encodes, in plain text. */
+  async doctorQrUrl(
+    doctorId: string,
+    tenantId?: string
+  ): Promise<{ url: string; counter_code: string; counter_name: string; doctor_name: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<{
+      url: string;
+      counter_code: string;
+      counter_name: string;
+      doctor_name: string;
+    }>(`/abha/counters/doctor/${encodeURIComponent(doctorId)}/qr-url`, { params });
+    return response.data;
+  },
+
   /** The QR image to print, as a blob. */
   async qrPng(counterCode: string, tenantId?: string): Promise<Blob> {
     const apiTenantId = getTenantIdForApi(tenantId);

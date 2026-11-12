@@ -268,7 +268,6 @@ export const HOSPITAL_GROUPS: NavGroupDefinition[] = [
       { path: "/dashboard-config", label: "Dashboard Settings", icon: LayoutDashboard },
       { path: "/master-data", label: "Master Data", icon: Package },
       { path: "/services", label: "Service Master", icon: Package },
-      { path: "/abdm-settings", label: "ABDM Settings", icon: ShieldCheck },
       { path: "/panel-config", label: "Panel Configuration", icon: Settings },
       { path: "/optometrist-mappings", label: "Optometrist Mappings", icon: LinkIcon },
       { path: "/examiner-mappings", label: "Examiner Mappings", icon: LinkIcon },
@@ -370,11 +369,6 @@ export function buildNavigationGroups({
         icon: Home,
       }
     : null;
-
-  // If ABDM is disabled, remove /abdm-settings from allowed set
-  if (!abdmEnabled) {
-    allowedSet.delete("/abdm-settings");
-  }
 
   // Track assigned screens to detect unassigned/other screens
   const assignedPaths = new Set<string>(["/"]);
@@ -560,7 +554,6 @@ export const PERMISSION_GROUPS: PermissionScreenGroupConfig[] = [
       "/dashboard-config",
       "/master-data",
       "/services",
-      "/abdm-settings",
       "/panel-config",
       "/optometrist-mappings",
       "/examiner-mappings",

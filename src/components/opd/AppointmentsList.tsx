@@ -8,14 +8,16 @@ import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play, FileText } from "lucide-react";
+import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play, FileText, QrCode } from "lucide-react";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
+import { DoctorAppointmentQrModal } from "./DoctorAppointmentQrModal";
 import { MaskedValue } from "@/components/common/MaskedValue";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { useTenant } from "@/hooks/useTenant";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -28,9 +30,11 @@ interface AppointmentsListProps {
 export function AppointmentsList({ doctorId, appointmentDate, onPatientClick }: AppointmentsListProps) {
   // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const queryClient = useQueryClient();
+  const { enabled: abdmEnabled } = useAbdmFlags();
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
+  const [showDoctorQrModal, setShowDoctorQrModal] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   // Appointment whose linked visit prescription is being previewed
   const [prescriptionAppointment, setPrescriptionAppointment] = useState<Appointment | null>(null);
@@ -569,24 +573,38 @@ export function AppointmentsList({ doctorId, appointmentDate, onPatientClick }: 
           </label>
         </div>
 
-        <button
-          onClick={handleExportPDF}
-          disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 lg:w-auto"
-          title="Export all appointments to PDF"
-        >
-          {exporting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Exporting...</span>
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4" />
-              <span>Export PDF</span>
-            </>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {abdmEnabled && selectedDoctorId && (
+            <button
+              type="button"
+              onClick={() => setShowDoctorQrModal(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 shadow-2xs transition-all hover:bg-sky-100 hover:border-sky-300 lg:w-auto"
+              title="View ABDM Scan & Share QR code for this doctor"
+            >
+              <QrCode className="h-4 w-4 text-sky-600" />
+              <span>Doctor QR</span>
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={handleExportPDF}
+            disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 lg:w-auto"
+            title="Export all appointments to PDF"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>Export PDF</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {dateRangeError && (
@@ -737,6 +755,13 @@ export function AppointmentsList({ doctorId, appointmentDate, onPatientClick }: 
           patientId={prescriptionAppointment.patient_id}
         />
       )}
+
+      {/* Doctor ABDM Scan & Share QR Modal */}
+      <DoctorAppointmentQrModal
+        isOpen={showDoctorQrModal}
+        onClose={() => setShowDoctorQrModal(false)}
+        initialDoctorId={selectedDoctorId}
+      />
 
       {/* Patient Detail Modal */}
       {selectedPatientId && (
