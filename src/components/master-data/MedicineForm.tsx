@@ -34,6 +34,7 @@ export function MedicineForm({ onCreated, tenantId, initialData }: MedicineFormP
             default_frequency: initialData?.default_frequency || "",
             default_duration: initialData?.default_duration || "",
             default_instructions: initialData?.default_instructions || "",
+            default_side_effects: initialData?.default_side_effects || initialData?.side_effects || "",
             is_active: initialData?.is_active ?? true,
         },
     });
@@ -50,6 +51,7 @@ export function MedicineForm({ onCreated, tenantId, initialData }: MedicineFormP
                 default_frequency: values.default_frequency?.trim() || null,
                 default_duration: values.default_duration?.trim() || null,
                 default_instructions: values.default_instructions?.trim() || null,
+                default_side_effects: values.default_side_effects?.trim() || null,
                 is_active: values.is_active,
             };
 
@@ -204,6 +206,16 @@ export function MedicineForm({ onCreated, tenantId, initialData }: MedicineFormP
                     placeholder="e.g. Take after food"
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                     {...register("default_instructions")}
+                />
+            </label>
+
+            <label className="col-span-2 space-y-1">
+                <span className="text-slate-600">Side Effects</span>
+                <textarea
+                    rows={2}
+                    placeholder="e.g. Mild nausea, drowsiness, dizziness"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                    {...register("default_side_effects")}
                 />
             </label>
 

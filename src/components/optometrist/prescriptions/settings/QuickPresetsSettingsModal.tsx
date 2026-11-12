@@ -157,6 +157,7 @@ export function QuickPresetsSettingsModal({
                 generic_name: m.medicine.generic_name,
                 brand: m.medicine.brand,
                 special_instructions: m.medicine.special_instructions,
+                side_effects: m.medicine.side_effects,
                 tapering_steps: m.medicine.tapering_steps ? JSON.parse(JSON.stringify(m.medicine.tapering_steps)) : undefined,
             }));
             setMedicines(defaultMeds);

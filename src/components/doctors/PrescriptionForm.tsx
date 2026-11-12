@@ -116,6 +116,8 @@ interface MedicineFormData extends PrescriptionItemRequest {
   start_date?: string | null;
   end_date?: string | null;
   special_instructions?: string | null;
+  side_effects?: string | null;
+  update_master_side_effects?: boolean | null;
 }
 
 interface FormData {
@@ -283,6 +285,7 @@ export function PrescriptionForm({
           prn_reason: m.prn_reason,
           instructions: m.instructions,
           special_instructions: m.special_instructions,
+          side_effects: m.side_effects,
           tapering_steps: m.tapering_steps,
         }
       })));
@@ -417,6 +420,8 @@ export function PrescriptionForm({
               end_date: item.end_date || "",
               instructions: item.instructions || "",
               special_instructions: item.special_instructions || "",
+              side_effects: item.side_effects || "",
+              update_master_side_effects: false,
               tapering_steps: item.tapering_steps || undefined,
             }));
             setMedicines(loadedMedicines);
@@ -539,6 +544,8 @@ export function PrescriptionForm({
       prn_reason: "",
       instructions: medicine.default_instructions || "Take with water",
       special_instructions: "",
+      side_effects: medicine.default_side_effects || medicine.side_effects || "",
+      update_master_side_effects: false,
     };
 
     setMedicines([...medicines, newMedicine]);
@@ -629,6 +636,8 @@ export function PrescriptionForm({
         prn_reason: isPrn ? (preset.medicine.prn_reason || "Fever / Pain") : "",
         instructions: preset.medicine.instructions || (hasTapering ? "Taper as advised" : "Take with water"),
         special_instructions: preset.medicine.special_instructions || "",
+        side_effects: preset.medicine.side_effects || catalogMatch?.default_side_effects || catalogMatch?.side_effects || "",
+        update_master_side_effects: false,
         tapering_steps: steps,
       };
       setMedicines([...medicines, newMed]);
@@ -795,6 +804,8 @@ export function PrescriptionForm({
       end_date: item.end_date || "",
       instructions: item.instructions || "",
       special_instructions: item.special_instructions || "",
+      side_effects: item.side_effects || "",
+      update_master_side_effects: false,
       tapering_steps: item.tapering_steps || undefined,
     }));
 
@@ -849,6 +860,8 @@ export function PrescriptionForm({
         prn_reason: "",
         instructions: item.instructions || "",
         special_instructions: (item as any).special_instructions || "",
+        side_effects: (item as any).side_effects || "",
+        update_master_side_effects: false,
         tapering_steps: item.tapering_steps || undefined,
       };
     });
@@ -930,6 +943,8 @@ export function PrescriptionForm({
           start_date: med.start_date || undefined,
           end_date: med.end_date || undefined,
           special_instructions: med.special_instructions || undefined,
+          side_effects: med.side_effects?.trim() || undefined,
+          update_master_side_effects: Boolean(med.update_master_side_effects),
         };
       }),
       diagnosis: data.diagnosis?.trim() || undefined,
@@ -2010,6 +2025,42 @@ export function PrescriptionForm({
                                       ))}
                                     </div>
                                   )}
+                                </div>
+
+                                {/* Side Effects & Master Update Option */}
+                                <div className="rounded-lg border border-amber-200/80 bg-amber-50/40 p-3 space-y-1.5 sm:col-span-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-900">
+                                      Side Effects
+                                    </label>
+                                    {canEdit && (
+                                      <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(medicine.update_master_side_effects)}
+                                          onChange={(e) =>
+                                            handleMedicineChange(
+                                              medicine.tempId,
+                                              "update_master_side_effects",
+                                              e.target.checked
+                                            )
+                                          }
+                                          className="h-3.5 w-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                        />
+                                        <span className="text-[11px] font-semibold text-amber-800">
+                                          Update in Medicine Master
+                                        </span>
+                                      </label>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={medicine.side_effects || ""}
+                                    onChange={(e) => handleMedicineChange(medicine.tempId, "side_effects", e.target.value)}
+                                    disabled={!canEdit}
+                                    placeholder="e.g. Mild nausea, dizziness, drowsiness"
+                                    className="w-full rounded-lg border border-amber-300/80 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-amber-500 focus:outline-none"
+                                  />
                                 </div>
                               </div>
 

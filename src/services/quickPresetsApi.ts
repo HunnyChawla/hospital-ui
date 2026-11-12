@@ -35,6 +35,7 @@ export interface QuickMedicine {
     is_prn?: boolean | null;
     prn_reason?: string | null;
     special_instructions?: string | null;
+    side_effects?: string | null;
 }
 
 

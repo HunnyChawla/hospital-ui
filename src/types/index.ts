@@ -497,6 +497,8 @@ export type MedicineItem = {
   is_prn?: boolean | null;
   prn_reason?: string | null;
   special_instructions?: string | null;
+  side_effects?: string | null;
+  update_master_side_effects?: boolean | null;
 };
 
 // Advice Item for Doctor Prescriptions

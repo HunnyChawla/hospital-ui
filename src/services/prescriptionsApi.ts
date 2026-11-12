@@ -32,6 +32,8 @@ export interface PrescriptionItemRequest {
   start_date?: string | null;
   end_date?: string | null;
   special_instructions?: string | null;
+  side_effects?: string | null;
+  update_master_side_effects?: boolean | null;
 }
 
 /**
@@ -106,6 +108,8 @@ export interface PrescriptionItemResponse {
   start_date?: string | null;
   end_date?: string | null;
   special_instructions?: string | null;
+  side_effects?: string | null;
+  update_master_side_effects?: boolean | null;
 }
 
 export interface PrescriptionResponse {

@@ -14,6 +14,8 @@ export interface Medicine {
   default_frequency: string | null;
   default_duration: string | null;
   default_instructions: string | null;
+  default_side_effects?: string | null;
+  side_effects?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -29,6 +31,8 @@ export interface CreateMedicineRequest {
   default_frequency?: string | null;
   default_duration?: string | null;
   default_instructions?: string | null;
+  default_side_effects?: string | null;
+  side_effects?: string | null;
   is_active?: boolean;
 }
 
@@ -42,6 +46,8 @@ export interface UpdateMedicineRequest {
   default_frequency?: string | null;
   default_duration?: string | null;
   default_instructions?: string | null;
+  default_side_effects?: string | null;
+  side_effects?: string | null;
   is_active?: boolean;
 }
 

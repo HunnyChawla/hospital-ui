@@ -637,14 +637,20 @@ export function PrescriptionPrint({
                                   </div>
                                 )}
 
-                                {/* Instructions & Special Instructions */}
-                                {(item.instructions || item.special_instructions) && (
+                                {/* Instructions & Special Instructions & Side Effects */}
+                                {(item.instructions || item.special_instructions || item.side_effects) && (
                                   <div className="text-slate-600 text-[9.5px] italic">
                                     {item.instructions && <span>Instructions: {item.instructions}</span>}
-                                    {item.instructions && item.special_instructions && <span> • </span>}
+                                    {item.instructions && (item.special_instructions || item.side_effects) && <span> • </span>}
                                     {item.special_instructions && (
                                       <span className="text-amber-800 font-normal">
                                         Special Note: {item.special_instructions}
+                                      </span>
+                                    )}
+                                    {item.special_instructions && item.side_effects && <span> • </span>}
+                                    {item.side_effects && (
+                                      <span className="text-amber-900 font-medium not-italic">
+                                        Side Effects: {item.side_effects}
                                       </span>
                                     )}
                                   </div>

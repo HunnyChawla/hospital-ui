@@ -61,6 +61,8 @@ export interface PharmacyMedicine {
   barcode?: string;
   tax_rate: number;
   is_active: boolean;
+  default_side_effects?: string | null;
+  side_effects?: string | null;
   current_stock: number;
   created_at: string;
   updated_at: string;
@@ -84,6 +86,8 @@ export interface CreatePharmacyMedicineData {
   max_stock_level?: number;
   barcode?: string;
   tax_rate?: number;
+  default_side_effects?: string;
+  side_effects?: string;
 }
 
 export interface UpdatePharmacyMedicineData {
@@ -104,6 +108,8 @@ export interface UpdatePharmacyMedicineData {
   max_stock_level?: number;
   barcode?: string;
   tax_rate?: number;
+  default_side_effects?: string;
+  side_effects?: string;
   is_active?: boolean;
 }
 

@@ -321,6 +321,11 @@ export function MedicinesPanel() {
                                             {medicine.default_instructions && (
                                                 <p className="text-[10px] text-slate-500 line-clamp-1 italic">{medicine.default_instructions}</p>
                                             )}
+                                            {(medicine.default_side_effects || medicine.side_effects) && (
+                                                <p className="text-[10px] text-amber-600 line-clamp-1">
+                                                    <span className="font-semibold">Side effects:</span> {medicine.default_side_effects || medicine.side_effects}
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="col-span-2 text-slate-600 line-clamp-1">{medicine.generic_name || "-"}</div>
                                         <div className="col-span-2 text-slate-600 line-clamp-1">{medicine.manufacturer || "-"}</div>

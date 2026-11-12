@@ -126,6 +126,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
     const [quantity, setQuantity] = useState("");
     const [instructions, setInstructions] = useState("Take with water");
     const [specialInstructions, setSpecialInstructions] = useState("");
+    const [sideEffects, setSideEffects] = useState("");
     const [taperingSteps, setTaperingSteps] = useState<any[] | undefined>(undefined);
     const [icon, setIcon] = useState<QuickMedicine["icon"]>("pill");
     const [color, setColor] = useState<QuickMedicine["color"]>("sky");
@@ -209,6 +210,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
 
         if (med.default_duration) setDuration(med.default_duration);
         if (med.default_instructions) setInstructions(med.default_instructions);
+        if (med.default_side_effects || med.side_effects) setSideEffects(med.default_side_effects || med.side_effects || "");
         setTiming("After food");
 
         // Auto-calculate quantity
@@ -237,6 +239,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
         setQuantity(item.quantity || "");
         setInstructions(item.instructions || "Take with water");
         setSpecialInstructions(item.special_instructions || "");
+        setSideEffects(item.side_effects || "");
         setTaperingSteps(item.tapering_steps || undefined);
         setIcon(item.icon);
         setColor(item.color);
@@ -264,6 +267,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
         setQuantity("10 tablets");
         setInstructions("Take with water");
         setSpecialInstructions("");
+        setSideEffects("");
         setTaperingSteps(undefined);
         setIcon("pill");
         setColor("sky");
@@ -274,6 +278,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
     };
 
     const cancelForm = () => {
+        setSideEffects("");
         setEditingIndex(null);
         setAddingNew(false);
     };
@@ -347,6 +352,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
             prn_reason: isPrn ? (prnReason.trim() || "As needed") : undefined,
             instructions: hasTapering ? "Refer steps" : (instructions.trim() || undefined),
             special_instructions: hasTapering ? undefined : (specialInstructions.trim() || undefined),
+            side_effects: sideEffects.trim() || undefined,
             tapering_steps: taperingSteps,
             icon,
             color,
@@ -815,6 +821,18 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
                                             inputClassName="w-full text-xs rounded border border-slate-300 bg-white px-2.5 py-1.5 focus:border-indigo-500 focus:outline-none"
                                         />
                                     </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] font-bold text-amber-900 mb-1 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 text-amber-600" /> Side Effects (Optional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={sideEffects}
+                                            onChange={(e) => setSideEffects(e.target.value)}
+                                            placeholder="e.g. Mild nausea, dizziness, drowsiness"
+                                            className="w-full text-xs rounded border border-slate-300 bg-white px-2.5 py-1.5 focus:border-indigo-500 focus:outline-none"
+                                        />
+                                    </div>
                                 </div>
                             </>
                         )}
@@ -1121,12 +1139,17 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
                                         </div>
                                     )}
 
-                                    {(item.instructions || item.special_instructions) && (
+                                    {(item.instructions || item.special_instructions || item.side_effects) && (
                                         <div className="text-[10px] text-slate-500 italic flex flex-wrap gap-x-2">
                                             {item.instructions && <span>Instructions: {item.instructions}</span>}
                                             {item.special_instructions && (
                                                 <span className="text-amber-700 font-normal">
                                                     • Special: {item.special_instructions}
+                                                </span>
+                                            )}
+                                            {item.side_effects && (
+                                                <span className="text-amber-800 font-medium not-italic">
+                                                    • Side effects: {item.side_effects}
                                                 </span>
                                             )}
                                         </div>

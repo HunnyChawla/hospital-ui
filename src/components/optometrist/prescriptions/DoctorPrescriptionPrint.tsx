@@ -582,6 +582,11 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                             </span>
                                                         </>
                                                     )}
+                                                    {med.side_effects && (
+                                                        <div className="text-[9px] text-amber-800 font-medium mt-0.5">
+                                                            <span>Side effects: {med.side_effects}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

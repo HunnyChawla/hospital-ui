@@ -719,6 +719,7 @@ export function PrescriptionFormSection({
                                 prn_reason: m.prn_reason,
                                 instructions: m.instructions,
                                 special_instructions: m.special_instructions,
+                                side_effects: m.side_effects,
                                 tapering_steps: m.tapering_steps,
                             }
                         }));
@@ -1006,6 +1007,8 @@ export function PrescriptionFormSection({
             appendMedicine({
                 medicine_id: "",
                 ...template.medicine,
+                side_effects: template.medicine.side_effects || "",
+                update_master_side_effects: false,
                 tapering_steps: template.medicine.tapering_steps
                     ? JSON.parse(JSON.stringify(template.medicine.tapering_steps))
                     : undefined,
@@ -1078,6 +1081,7 @@ export function PrescriptionFormSection({
         const frequency = medicine?.default_frequency || medicine?.frequency || "";
         const duration = medicine?.default_duration || medicine?.duration || "";
         const instructions = medicine?.default_instructions || medicine?.instructions || "";
+        const sideEffects = medicine?.default_side_effects || medicine?.side_effects || "";
 
         appendMedicine({
             medicine_id: medicine?.id || medicine?.medicine_id || "",
@@ -1087,6 +1091,8 @@ export function PrescriptionFormSection({
             frequency,
             duration,
             instructions,
+            side_effects: sideEffects,
+            update_master_side_effects: false,
             applicable_eye: "BOTH",
         });
         setMedicineSearchQuery("");
@@ -2239,6 +2245,29 @@ export function PrescriptionFormSection({
                                                                             inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
                                                                         />
                                                                     )}
+                                                                />
+                                                            </div>
+                                                            <div className="col-span-2">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <label className="text-xs font-bold text-amber-900 block uppercase tracking-wide">
+                                                                        Side Effects
+                                                                    </label>
+                                                                    <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            {...register(`medicine_items.${index}.update_master_side_effects` as const)}
+                                                                            className="h-3.5 w-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                                                        />
+                                                                        <span className="text-[11px] font-semibold text-amber-800">
+                                                                            Update in Medicine Master
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                                <input
+                                                                    type="text"
+                                                                    {...register(`medicine_items.${index}.side_effects` as const)}
+                                                                    placeholder="e.g. Mild nausea, dizziness, drowsiness"
+                                                                    className="w-full rounded-lg border-2 border-amber-200/80 bg-white px-3 py-2 text-sm text-slate-900 font-medium focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/20 transition-all shadow-sm"
                                                                 />
                                                             </div>
                                                         </>
@@ -3562,7 +3591,8 @@ export function PrescriptionFormSection({
                                                     dosage: m.dosage,
                                                     frequency: m.frequency,
                                                     duration: m.duration,
-                                                    instructions: m.instructions
+                                                    instructions: m.instructions,
+                                                    side_effects: m.side_effects,
                                                 }
                                             }));
                                             setMedicinesOptions(mappedMeds);
