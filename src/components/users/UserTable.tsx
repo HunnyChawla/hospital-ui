@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usersApi, User, UserRole, UserStatus } from "@/services/usersApi";
 import { formatDate } from "@/utils/format";
 import {
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Key,
   Mail,
-  Calendar,
   Clock,
   DoorClosed,
   User as UserIcon,
@@ -36,6 +35,7 @@ export interface StaffMetrics {
 }
 
 interface UserTableProps {
+  tenantId?: string;
   onUserClick?: (userId: string) => void;
   onEditClick?: (user: User) => void;
   roleFilter?: UserRole;
@@ -46,6 +46,7 @@ interface UserTableProps {
 }
 
 export function UserTable({
+  tenantId,
   onUserClick,
   onEditClick,
   roleFilter,
@@ -57,7 +58,7 @@ export function UserTable({
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
@@ -67,41 +68,6 @@ export function UserTable({
     typeof window !== "undefined" &&
     ["admin", "platform_owner"].includes(localStorage.getItem("role") || "");
 
-  // Fetch metrics across the full staff directory
-  const fetchMetrics = useCallback(async () => {
-    try {
-      const response = await usersApi.list({ page: 1, page_size: 200 });
-      if (response && response.items) {
-        const totalCount = response.total;
-        let activeCount = 0;
-        let inactiveCount = 0;
-        let clinicalCount = 0;
-        const clinicalRoles = new Set([
-          "doctor",
-          "nurse",
-          "optometrist",
-          "lab_technician",
-          "pharmacist",
-        ]);
-
-        response.items.forEach((u) => {
-          if (u.status === "active") activeCount++;
-          if (u.status === "inactive") inactiveCount++;
-          if (clinicalRoles.has(u.role)) clinicalCount++;
-        });
-
-        onMetricsUpdate?.({
-          total: totalCount,
-          active: activeCount,
-          inactive: inactiveCount,
-          clinical: clinicalCount,
-        });
-      }
-    } catch {
-      // Non-blocking metrics retrieval
-    }
-  }, [onMetricsUpdate]);
-
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -110,45 +76,45 @@ export function UserTable({
         page_size: pageSize,
         role: roleFilter,
         status: statusFilter,
+        tenant_id: tenantId,
         search: search?.trim() || undefined,
       });
       setUsers(response.items);
       setTotalPages(response.total_pages);
       setTotal(response.total);
+      if (response.summary) {
+        onMetricsUpdate?.(response.summary);
+      }
     } catch (error) {
       console.error("Failed to fetch users:", error);
       setUsers([]);
       setTotalPages(1);
       setTotal(0);
+      onMetricsUpdate?.({ total: 0, active: 0, inactive: 0, clinical: 0 });
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, roleFilter, statusFilter, search]);
+  }, [currentPage, pageSize, roleFilter, statusFilter, tenantId, search, onMetricsUpdate]);
 
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when any filter or search changes
-  }, [roleFilter, statusFilter, search]);
+    setCurrentPage(1); // Reset to first page when any filter, tenant, page size, or search changes
+  }, [roleFilter, statusFilter, tenantId, pageSize, search]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
-
   // Listen for user creation/update events to refresh list and stats
   useEffect(() => {
     const handleUserCreated = () => {
       fetchUsers();
-      fetchMetrics();
     };
 
     window.addEventListener("user:created", handleUserCreated);
     return () => {
       window.removeEventListener("user:created", handleUserCreated);
     };
-  }, [fetchUsers, fetchMetrics]);
+  }, [fetchUsers]);
 
   // Helper for initials
   const getInitials = (name: string) => {
@@ -191,6 +157,12 @@ export function UserTable({
           avatarBg: "bg-indigo-100 text-indigo-800 ring-indigo-200",
           icon: Eye,
         };
+      case "counsellor":
+        return {
+          bg: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200/80",
+          avatarBg: "bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-200",
+          icon: Users,
+        };
       case "examiner":
         return {
           bg: "bg-teal-50 text-teal-700 border-teal-200/80",
@@ -228,6 +200,42 @@ export function UserTable({
           icon: UserIcon,
         };
     }
+  };
+
+  const renderStatusBadge = (status: UserStatus, size: "sm" | "md" = "sm") => {
+    const paddingClass = size === "md" ? "px-2.5 py-1" : "px-2.5 py-0.5";
+    const dotSize = size === "md" ? "h-2 w-2" : "h-1.5 w-1.5";
+    if (status === "active") {
+      return (
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-50 ${paddingClass} text-xs font-medium text-emerald-700 border border-emerald-200/60`}
+        >
+          <span className={`relative flex ${dotSize}`}>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+            <span className={`relative inline-flex ${dotSize} rounded-full bg-emerald-500`}></span>
+          </span>
+          Active
+        </span>
+      );
+    }
+    if (status === "suspended") {
+      return (
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full bg-rose-50 ${paddingClass} text-xs font-medium text-rose-700 border border-rose-200`}
+        >
+          <span className={`${dotSize} rounded-full bg-rose-500`}></span>
+          Suspended
+        </span>
+      );
+    }
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-slate-100 ${paddingClass} text-xs font-medium text-slate-600 border border-slate-200`}
+      >
+        <span className={`${dotSize} rounded-full bg-slate-400`}></span>
+        Inactive
+      </span>
+    );
   };
 
   const hasActiveFilters = Boolean(roleFilter || statusFilter || search?.trim());
@@ -304,20 +312,7 @@ export function UserTable({
 
                   {/* Status Indicator */}
                   <div className="shrink-0">
-                    {user.status === "active" ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-200/60">
-                        <span className="relative flex h-2 w-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                        </span>
-                        Active
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-200">
-                        <span className="h-2 w-2 rounded-full bg-slate-400"></span>
-                        Inactive
-                      </span>
-                    )}
+                    {renderStatusBadge(user.status, "md")}
                   </div>
                 </div>
 
@@ -473,22 +468,9 @@ export function UserTable({
                       )}
                     </td>
 
-                    {/* Status Pill with Pulsing Dot */}
+                    {/* Status Pill */}
                     <td className="px-4 py-3.5">
-                      {user.status === "active" ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200/60">
-                          <span className="relative flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                          </span>
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
-                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-                          Inactive
-                        </span>
-                      )}
+                      {renderStatusBadge(user.status, "sm")}
                     </td>
 
                     {/* Created At */}
@@ -548,71 +530,89 @@ export function UserTable({
       </div>
 
       {/* ──────────────────────────────────────────────────────────── */}
-      {/* 3. Responsive Pagination                                     */}
+      {/* 3. Responsive Pagination & Page Size                         */}
       {/* ──────────────────────────────────────────────────────────── */}
-      {totalPages > 1 && (
+      {total > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-slate-600 text-center sm:text-left">
-            Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-            <span className="font-semibold text-slate-900">
-              {Math.min(currentPage * pageSize, total)}
-            </span>{" "}
-            of <span className="font-semibold text-slate-900">{total}</span> staff
-          </div>
-
-          <div className="flex items-center justify-center gap-1.5">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="flex min-h-[36px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Prev
-            </button>
-
-            {/* Desktop page buttons */}
-            <div className="hidden sm:flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`min-h-[36px] min-w-[2.25rem] rounded-xl px-2.5 py-1.5 text-xs font-semibold transition ${
-                      currentPage === pageNum
-                        ? "bg-sky-500 text-white shadow-sm"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+            <div className="text-xs text-slate-600">
+              Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+              <span className="font-semibold text-slate-900">
+                {Math.min(currentPage * pageSize, total)}
+              </span>{" "}
+              of <span className="font-semibold text-slate-900">{total}</span> staff
             </div>
-
-            {/* Mobile compact page indicator */}
-            <span className="sm:hidden px-2 text-xs font-medium text-slate-600">
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="flex min-h-[36px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 focus:border-sky-500 focus:bg-white focus:outline-none"
+                aria-label="Staff per page"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </label>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="flex min-h-[36px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Prev
+              </button>
+
+              {/* Desktop page buttons */}
+              <div className="hidden sm:flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`min-h-[36px] min-w-[2.25rem] rounded-xl px-2.5 py-1.5 text-xs font-semibold transition ${
+                        currentPage === pageNum
+                          ? "bg-sky-500 text-white shadow-sm"
+                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mobile compact page indicator */}
+              <span className="sm:hidden px-2 text-xs font-medium text-slate-600">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="flex min-h-[36px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -623,6 +623,7 @@ export function UserTable({
           onClose={() => setResetPasswordUser(null)}
           userId={resetPasswordUser.id}
           userName={resetPasswordUser.full_name}
+          tenantId={tenantId}
         />
       )}
     </>

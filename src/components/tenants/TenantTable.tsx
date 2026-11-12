@@ -11,6 +11,7 @@ import {
   Building2,
   Clock,
   UserPlus,
+  Users,
   CalendarClock,
   UserX,
   Sliders,
@@ -381,6 +382,16 @@ export function TenantTable({
                       title="Create user"
                     >
                       <UserPlus className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/users?tenant_id=${tenant.id}`);
+                      }}
+                      className="flex items-center justify-center rounded-lg bg-indigo-500 p-2 text-white transition hover:bg-indigo-600"
+                      title="View & Manage Staff"
+                    >
+                      <Users className="h-4 w-4" />
                     </button>
                     <button
                       onClick={(e) => {

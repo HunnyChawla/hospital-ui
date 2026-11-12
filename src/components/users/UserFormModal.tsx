@@ -9,9 +9,17 @@ interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultValues?: User;
+  tenantId?: string;
+  tenantName?: string;
 }
 
-export function UserFormModal({ isOpen, onClose, defaultValues }: UserFormModalProps) {
+export function UserFormModal({
+  isOpen,
+  onClose,
+  defaultValues,
+  tenantId,
+  tenantName,
+}: UserFormModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -28,7 +36,9 @@ export function UserFormModal({ isOpen, onClose, defaultValues }: UserFormModalP
             <p className="text-xs text-slate-500">
               {defaultValues
                 ? `Update profile, cabin, and status for ${defaultValues.full_name}`
-                : "Create a new hospital clinical or administrative account"}
+                : tenantName
+                  ? `Create a new account in ${tenantName}`
+                  : "Create a new hospital clinical or administrative account"}
             </p>
           </div>
         </div>
@@ -37,6 +47,8 @@ export function UserFormModal({ isOpen, onClose, defaultValues }: UserFormModalP
     >
       <UserForm
         defaultValues={defaultValues}
+        tenantId={tenantId}
+        tenantName={tenantName}
         onSuccess={() => {
           onClose();
         }}

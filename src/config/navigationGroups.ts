@@ -135,6 +135,7 @@ export const PLATFORM_OWNER_GROUPS: NavGroupDefinition[] = [
     allowStandaloneSingle: false,
     items: [
       { path: "/tenants", label: "Tenants", icon: Building2 },
+      { path: "/users", label: "Tenant Staff", icon: Users },
       { path: "/subscription-plans", label: "Plans & Modules", icon: Boxes },
       { path: "/rate-limits", label: "Rate Limits", icon: Gauge },
       { path: "/session-policies", label: "Session Policies", icon: ShieldCheck },
@@ -310,8 +311,9 @@ export function buildNavigationGroups({
         : PLATFORM_OWNER_SCREENS
     );
 
-    // Also include canonical fallback for platform owner
+    // Also include canonical fallback and cross-tenant staff route for platform owner
     PLATFORM_OWNER_SCREENS.forEach((p) => accessiblePaths.add(p));
+    accessiblePaths.add("/users");
 
     for (const groupDef of PLATFORM_OWNER_GROUPS) {
       const activeItems: NavItemConfig[] = [];

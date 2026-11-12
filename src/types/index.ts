@@ -950,6 +950,7 @@ export type UserRole =
   | "nurse"
   | "receptionist"
   | "optometrist"
+  | "counsellor"
   | "examiner"
   | "lab_technician"
   | "platform_owner"

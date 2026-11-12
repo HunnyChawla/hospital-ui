@@ -52,6 +52,7 @@ export function CreateTenantUserModal({
     try {
       await usersApi.create(values, tenantId);
       toast.success(`User created successfully in ${tenantName}`);
+      window.dispatchEvent(new CustomEvent("user:created"));
       reset();
       onClose();
     } catch (error) {
@@ -197,6 +198,7 @@ export function CreateTenantUserModal({
               <option value="optometrist">Optometrist</option>
               <option value="examiner">Examiner</option>
               <option value="lab_technician">Lab Technician</option>
+              <option value="counsellor">Counsellor</option>
             </select>
             {errors.role && (
               <p className="text-xs text-rose-500">{errors.role.message as string}</p>

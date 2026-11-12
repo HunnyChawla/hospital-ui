@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { UserTable, StaffMetrics } from "@/components/users/UserTable";
 import { UserFormModal } from "@/components/users/UserFormModal";
+import { TenantSelector } from "@/components/tenants/TenantSelector";
 import { User, UserRole, UserStatus } from "@/services/usersApi";
+import { Tenant } from "@/services/tenantsApi";
+import { isPlatformOwner } from "@/utils/auth";
 import {
   Users2,
   UserCog,
@@ -20,9 +25,19 @@ import {
   UserX,
   Users,
   RotateCcw,
+  Building2,
+  ArrowLeft,
+  Shield,
 } from "lucide-react";
 
-export default function UsersPage() {
+function UsersPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlTenantId = searchParams.get("tenant_id") || "";
+
+  const [mounted, setMounted] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(urlTenantId);
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
   const [selectedRole, setSelectedRole] = useState<UserRole | "all">("all");
@@ -37,6 +52,27 @@ export default function UsersPage() {
     clinical: 0,
   });
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    setSelectedTenantId(urlTenantId);
+    setSelectedTenant((prev) => {
+      if (prev && prev.id === urlTenantId) {
+        return prev;
+      }
+      return null;
+    });
+    if (!urlTenantId) {
+      setMetrics({ total: 0, active: 0, inactive: 0, clinical: 0 });
+    }
+  }, [urlTenantId]);
+
+  const platformOwner = mounted ? isPlatformOwner() : false;
+  const effectiveTenantId = platformOwner ? selectedTenantId || undefined : undefined;
+  const canQueryStaff = mounted && (!platformOwner || Boolean(selectedTenantId));
+
   // Debounce search query changes
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -46,7 +82,18 @@ export default function UsersPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const handleSelectTenant = (tenant: Tenant) => {
+    if (tenant.id !== selectedTenantId) {
+      setMetrics({ total: 0, active: 0, inactive: 0, clinical: 0 });
+      setSelectedUser(undefined);
+    }
+    setSelectedTenantId(tenant.id);
+    setSelectedTenant(tenant);
+    router.replace(`/users?tenant_id=${tenant.id}`, { scroll: false });
+  };
+
   const handleAddUser = () => {
+    if (platformOwner && !selectedTenantId) return;
     setSelectedUser(undefined);
     setShowModal(true);
   };
@@ -86,7 +133,20 @@ export default function UsersPage() {
     { value: "optometrist", label: "Optometrist", icon: Eye },
     { value: "examiner", label: "Examiner", icon: ClipboardList },
     { value: "lab_technician", label: "Lab Technician", icon: FlaskConical },
+    { value: "counsellor", label: "Counsellor", icon: Users2 },
+    ...(platformOwner
+      ? [{ value: "platform_owner" as const, label: "Platform Owner", icon: Shield }]
+      : []),
   ];
+
+  if (!mounted) {
+    return (
+      <div className="space-y-4">
+        <div className="h-32 animate-pulse rounded-2xl border border-slate-200/90 bg-white" />
+        <div className="h-64 animate-pulse rounded-2xl border border-slate-200/90 bg-white" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -100,23 +160,58 @@ export default function UsersPage() {
               <Users className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight sm:text-xl">
-                Staff Management
-              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight sm:text-xl">
+                  {platformOwner ? "Tenant Staff Directory" : "Staff Management"}
+                </h1>
+                {platformOwner && selectedTenant && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
+                    <Building2 className="h-3 w-3" />
+                    {selectedTenant.name}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500">
-                Manage hospital personnel, access permissions, cabins, and user accounts
+                {platformOwner
+                  ? selectedTenant
+                    ? `Viewing and managing staff accounts for ${selectedTenant.name} (${selectedTenant.subdomain})`
+                    : "Select a hospital tenant below to view and manage its staff accounts"
+                  : "Manage hospital personnel, access permissions, cabins, and user accounts"}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={handleAddUser}
-            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md shadow-sky-500/20 transition hover:shadow-lg hover:brightness-105 active:scale-[0.98]"
-          >
-            <UserPlus className="h-4 w-4 shrink-0" />
-            <span>Add Staff Member</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {platformOwner && (
+              <Link
+                href="/tenants"
+                className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50"
+              >
+                <ArrowLeft className="h-4 w-4 shrink-0" />
+                <span>Back to Tenants</span>
+              </Link>
+            )}
+            <button
+              onClick={handleAddUser}
+              disabled={platformOwner && !selectedTenantId}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md shadow-sky-500/20 transition hover:shadow-lg hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <UserPlus className="h-4 w-4 shrink-0" />
+              <span>Add Staff Member</span>
+            </button>
+          </div>
         </div>
+
+        {platformOwner && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+            <TenantSelector
+              selectedTenantId={selectedTenantId}
+              onSelectTenant={handleSelectTenant}
+              onTenantResolved={setSelectedTenant}
+              label="Selected Hospital Tenant"
+            />
+          </div>
+        )}
 
         {/* ──────────────────────────────────────────────────────────── */}
         {/* 2. Overview KPI Metric Cards                                 */}
@@ -255,6 +350,7 @@ export default function UsersPage() {
               <option value="all">All Statuses</option>
               <option value="active">Active Only</option>
               <option value="inactive">Inactive Only</option>
+              <option value="suspended">Suspended Only</option>
             </select>
 
             {hasActiveFilters && (
@@ -306,14 +402,33 @@ export default function UsersPage() {
         {/* ──────────────────────────────────────────────────────────── */}
         {/* 5. Staff Table / Mobile Cards Component                     */}
         {/* ──────────────────────────────────────────────────────────── */}
-        <UserTable
-          onEditClick={handleEditUser}
-          roleFilter={selectedRole === "all" ? undefined : selectedRole}
-          statusFilter={selectedStatus === "all" ? undefined : selectedStatus}
-          search={debouncedSearchQuery}
-          onClearFilters={handleClearFilters}
-          onMetricsUpdate={setMetrics}
-        />
+        {canQueryStaff ? (
+          <UserTable
+            tenantId={effectiveTenantId}
+            onEditClick={handleEditUser}
+            roleFilter={selectedRole === "all" ? undefined : selectedRole}
+            statusFilter={selectedStatus === "all" ? undefined : selectedStatus}
+            search={debouncedSearchQuery}
+            onClearFilters={handleClearFilters}
+            onMetricsUpdate={setMetrics}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <h2 className="mt-3 text-base font-semibold text-slate-900">
+              Select a Hospital Tenant
+            </h2>
+            <p className="mt-1 max-w-md text-xs sm:text-sm text-slate-500">
+              Choose a hospital from the Tenant Selector above, or navigate from the{" "}
+              <Link href="/tenants" className="font-semibold text-sky-600 hover:underline">
+                Tenants
+              </Link>{" "}
+              directory to inspect and manage its staff members.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ──────────────────────────────────────────────────────────── */}
@@ -323,7 +438,24 @@ export default function UsersPage() {
         isOpen={showModal}
         onClose={handleCloseModal}
         defaultValues={selectedUser}
+        tenantId={effectiveTenantId}
+        tenantName={platformOwner ? selectedTenant?.name : undefined}
       />
     </div>
+  );
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <div className="h-32 animate-pulse rounded-2xl border border-slate-200/90 bg-white" />
+          <div className="h-64 animate-pulse rounded-2xl border border-slate-200/90 bg-white" />
+        </div>
+      }
+    >
+      <UsersPageContent />
+    </Suspense>
   );
 }

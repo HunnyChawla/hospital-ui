@@ -28,14 +28,17 @@ import {
 } from "lucide-react";
 import { validatePassword } from "@/utils/passwordPolicy";
 import { PasswordRequirements } from "@/components/password/PasswordRequirements";
+import { isPlatformOwner } from "@/utils/auth";
 
 interface UserFormProps {
   defaultValues?: User;
+  tenantId?: string;
+  tenantName?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function UserForm({ defaultValues, onSuccess, onCancel }: UserFormProps) {
+export function UserForm({ defaultValues, tenantId, tenantName, onSuccess, onCancel }: UserFormProps) {
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,12 +89,14 @@ export function UserForm({ defaultValues, onSuccess, onCancel }: UserFormProps) 
           status: values.status,
           cabin: values.cabin || undefined,
         };
-        await usersApi.update(defaultValues.id, updateData);
+        await usersApi.update(defaultValues.id, updateData, tenantId);
         toast.success("Staff profile updated successfully");
 
         // Refresh cache and trigger event
         window.dispatchEvent(new CustomEvent("user:created"));
-        dispatch(fetchDoctors());
+        if (!isPlatformOwner()) {
+          dispatch(fetchDoctors());
+        }
       } else {
         // Create new user
         if (!values.password) {
@@ -107,12 +112,14 @@ export function UserForm({ defaultValues, onSuccess, onCancel }: UserFormProps) 
           status: values.status as UserStatus,
           cabin: values.cabin || undefined,
         };
-        await usersApi.create(createData);
+        await usersApi.create(createData, tenantId);
         toast.success("Staff account created successfully");
 
         // Refresh cache and trigger event
         window.dispatchEvent(new CustomEvent("user:created"));
-        dispatch(fetchDoctors());
+        if (!isPlatformOwner()) {
+          dispatch(fetchDoctors());
+        }
       }
 
       onSuccess?.();
@@ -126,6 +133,12 @@ export function UserForm({ defaultValues, onSuccess, onCancel }: UserFormProps) 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-4">
+      {tenantName && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+          Target Hospital Tenant: <strong>{tenantName}</strong>
+        </div>
+      )}
+
       {/* Informational Alert for Existing Users */}
       {defaultValues && (
         <div className="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-xs text-sky-800">
@@ -219,6 +232,7 @@ export function UserForm({ defaultValues, onSuccess, onCancel }: UserFormProps) 
             <option value="pharmacist">Pharmacist</option>
             <option value="pharmacy_manager">Pharmacy Manager</option>
             <option value="optometrist">Optometrist</option>
+            <option value="counsellor">Counsellor</option>
             <option value="examiner">Examiner</option>
             <option value="lab_technician">Lab Technician</option>
             <option value="admin">Administrator</option>

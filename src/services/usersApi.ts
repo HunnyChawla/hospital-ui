@@ -7,12 +7,13 @@ export type UserRole =
   | "nurse"
   | "receptionist"
   | "optometrist"
+  | "counsellor"
   | "examiner"
   | "lab_technician"
   | "platform_owner"
   | "pharmacist"
   | "pharmacy_manager";
-export type UserStatus = "active" | "inactive";
+export type UserStatus = "active" | "inactive" | "suspended";
 
 export interface User {
   id: string;
@@ -57,6 +58,12 @@ export interface UsersSearchResponse {
   page: number;
   page_size: number;
   total_pages: number;
+  summary?: {
+    total: number;
+    active: number;
+    inactive: number;
+    clinical: number;
+  } | null;
 }
 
 export const usersApi = {

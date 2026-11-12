@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export interface ChangePasswordRequest {
   current_password: string;
@@ -27,8 +28,10 @@ export const passwordApi = {
   /**
    * Reset password for another user (admin/platform_owner only)
    */
-  async resetPassword(data: ResetPasswordRequest): Promise<PasswordResponse> {
-    const response = await apiClient.post<PasswordResponse>("/auth/reset-password", data);
+  async resetPassword(data: ResetPasswordRequest, tenantId?: string): Promise<PasswordResponse> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<PasswordResponse>("/auth/reset-password", data, { params });
     return response.data;
   },
 };

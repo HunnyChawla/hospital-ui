@@ -15,6 +15,7 @@ interface ResetPasswordModalProps {
     onClose: () => void;
     userId: string;
     userName: string;
+    tenantId?: string;
     onSuccess?: () => void;
 }
 
@@ -28,6 +29,7 @@ export function ResetPasswordModal({
     onClose,
     userId,
     userName,
+    tenantId,
     onSuccess,
 }: ResetPasswordModalProps) {
     const [showNewPassword, setShowNewPassword] = useState(false);
@@ -52,10 +54,13 @@ export function ResetPasswordModal({
 
         setIsSubmitting(true);
         try {
-            await passwordApi.resetPassword({
-                user_id: userId,
-                new_password: data.new_password,
-            });
+            await passwordApi.resetPassword(
+                {
+                    user_id: userId,
+                    new_password: data.new_password,
+                },
+                tenantId
+            );
             toast.success(`Password reset successfully for ${userName}`);
             reset();
             onSuccess?.();
