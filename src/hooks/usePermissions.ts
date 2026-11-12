@@ -27,6 +27,9 @@ export function usePermissions() {
       // Normalize path: take only the pathname part
       const normalizedPath = screenPath.split("?")[0].split("#")[0];
 
+      // Universal self-service Legal, Privacy & DPDP Rights Center for all authenticated staff
+      if (normalizedPath === "/legal") return true;
+
       // Exact match
       if (allowedScreens.includes(normalizedPath)) return true;
 
