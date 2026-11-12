@@ -10,7 +10,7 @@ export default function DoctorsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | undefined>(undefined);
   const [showFeesModal, setShowFeesModal] = useState(false);
-  const [selectedDoctorForFees, setSelectedDoctorForFees] = useState<string | null>(null);
+  const [selectedDoctorForFees, setSelectedDoctorForFees] = useState<Doctor | null>(null);
 
   const handleAddDoctor = () => {
     setSelectedDoctor(undefined);
@@ -28,7 +28,7 @@ export default function DoctorsPage() {
   };
 
   const handleConfigureFees = (doctor: Doctor) => {
-    setSelectedDoctorForFees(doctor.id);
+    setSelectedDoctorForFees(doctor);
     setShowFeesModal(true);
   };
 
@@ -65,7 +65,8 @@ export default function DoctorsPage() {
         <ConsultationFeeFormModal
           isOpen={showFeesModal}
           onClose={handleCloseFeesModal}
-          doctorId={selectedDoctorForFees}
+          doctorId={selectedDoctorForFees.id}
+          doctor={selectedDoctorForFees}
         />
       )}
     </div>
