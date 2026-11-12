@@ -67,6 +67,29 @@ export interface SessionExtendResponse {
   session_expiry_minutes: number;
 }
 
+export interface ImpersonateRequest {
+  user_id: string;
+  tenant_id: string;
+  reason?: string;
+}
+
+export interface ImpersonateResponse {
+  code: string;
+  expires_in: number;
+  tenant_id: string;
+  target_user_id: string;
+  tenant_name: string;
+  tenant_subdomain?: string | null;
+}
+
+export interface ImpersonateExchangeResponse extends LoginResponse {
+  is_impersonation: boolean;
+  impersonated_by_user_id: string;
+  impersonated_by_name?: string | null;
+  tenant_name: string;
+  tenant_subdomain?: string | null;
+}
+
 export interface LoginResponse {
   token: {
     access_token: string;
@@ -176,6 +199,30 @@ export const authApi = {
 
   async extendSession(): Promise<SessionExtendResponse> {
     const response = await apiClient.post<SessionExtendResponse>("/auth/session/extend", {});
+    return response.data;
+  },
+
+  async impersonate(payload: ImpersonateRequest): Promise<ImpersonateResponse> {
+    const response = await apiClient.post<ImpersonateResponse>("/auth/impersonate", payload);
+    return response.data;
+  },
+
+  async exchangeImpersonationCode(code: string): Promise<ImpersonateExchangeResponse> {
+    const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");
+    const exchangeUrl = baseUrl
+      ? `${baseUrl}/auth/impersonate/exchange`
+      : "/api/auth/impersonate/exchange";
+
+    const response = await axios.post<ImpersonateExchangeResponse>(
+      exchangeUrl,
+      { code },
+      {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
     return response.data;
   },
 };

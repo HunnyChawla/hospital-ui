@@ -3,7 +3,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
-import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
+import { restoreSession, fetchUserDetails, logout } from "@/redux/authSlice";
+import {
+  isImpersonationSession,
+  getImpersonationMeta,
+  clearImpersonationTabStorage,
+  ImpersonationSessionMeta,
+} from "@/utils/authStorage";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { fetchMyPermissions, hydratePermissions } from "@/redux/permissionsSlice";
@@ -19,9 +25,8 @@ const PatientDetailView = dynamic(
   { ssr: false }
 );
 import { usePermissions } from "@/hooks/usePermissions";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";
-import { Shield, Home as HomeIcon } from "lucide-react";
+import { Shield, Home as HomeIcon, ShieldAlert, LogOut } from "lucide-react";
 
 /**
  * LicenseExpiryAlert Component
@@ -154,6 +159,27 @@ export default function DashboardLayout({
   const beds = useAppSelector((s) => s.beds);
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [impersonationMeta, setImpersonationMeta] =
+    useState<ImpersonationSessionMeta | null>(null);
+  const [exitingImpersonation, setExitingImpersonation] = useState(false);
+
+  useEffect(() => {
+    if (isImpersonationSession()) {
+      setImpersonationMeta(getImpersonationMeta());
+    }
+  }, [isAuthenticated]);
+
+  const handleExitImpersonation = async () => {
+    setExitingImpersonation(true);
+    try {
+      await dispatch(logout());
+    } finally {
+      clearImpersonationTabStorage();
+      window.close();
+      const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
+      window.location.replace(`${basePath}/login?reason=user_logout`);
+    }
+  };
 
   // Permission-based route protection
   const {
@@ -165,31 +191,41 @@ export default function DashboardLayout({
     userPermissions
   } = usePermissions();
 
-  // Per-tenant opt-in for the general clinic panel; defaults off so existing
-  // tenants keep the legacy /doctor-panel untouched.
-  const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");
-  const clinicPanelEnabled = (clinicPanelFlags?.enabled as boolean) ?? false;
-
-  const authState = useMemo((): { authorized: boolean; ownPanelPath: string | null } => {
+  const authState = useMemo((): {
+    authorized: boolean;
+    ownPanelPath: string | null;
+    pendingPanelResolution?: boolean;
+  } => {
     if (!permissionsInitialized || permissionsLoading || !isAuthenticated)
       return { authorized: true, ownPanelPath: null };
 
     // Panel routing: each doctor/examiner/optometrist belongs on their designated panel
     // (resolver shared with Sidebar so the two cannot drift)
-    if (userRole === "doctor" || userRole === "examiner" || userRole === "optometrist") {
+    const normalizedRole = userRole?.toLowerCase();
+    if (
+      normalizedRole === "doctor" ||
+      normalizedRole === "examiner" ||
+      normalizedRole === "optometrist"
+    ) {
+      const target = PANEL_PATHS.find((p) => pathname.startsWith(p));
+      if (normalizedRole === "doctor" && !doctors.initialized) {
+        return {
+          authorized: true,
+          ownPanelPath: null,
+          pendingPanelResolution: Boolean(target),
+        };
+      }
       const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
       const currentDoctor = doctors.list?.find((d) => d.user_id === userId);
       const mine = resolvePanelPathForUser(
-        userRole,
-        currentDoctor?.specialization,
-        clinicPanelEnabled
+        normalizedRole,
+        currentDoctor?.specialization
       );
-      const target = PANEL_PATHS.find((p) => pathname.startsWith(p));
       if (target && target !== mine) return { authorized: false, ownPanelPath: mine };
     }
 
     return { authorized: hasAccess(pathname), ownPanelPath: null };
-  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors, clinicPanelEnabled]);
+  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors]);
   const isAuthorized = authState.authorized;
 
   // Handle redirection to default screen if root (/) is not the intended start page
@@ -337,12 +373,45 @@ export default function DashboardLayout({
 
   return (
     <main className="min-h-screen flex flex-col px-3 py-3 lg:px-6 pb-20 min-w-0 max-w-full">
+      {impersonationMeta && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs sm:text-sm text-amber-950 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0" />
+            <span className="font-bold uppercase tracking-wide text-[11px] text-amber-800">
+              Impersonation Mode
+            </span>
+            <span>
+              Signed in as{" "}
+              <strong className="font-semibold">{impersonationMeta.targetName}</strong> (
+              {impersonationMeta.targetRole.replace(/_/g, " ")})
+              {impersonationMeta.tenantName ? ` · ${impersonationMeta.tenantName}` : ""}
+            </span>
+            <span className="text-[11px] text-amber-700">
+              (Audit-logged · 30m limit · Isolated to this tab)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleExitImpersonation}
+            disabled={exitingImpersonation}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-950 disabled:opacity-50"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>{exitingImpersonation ? "Exiting..." : "Exit Impersonation"}</span>
+          </button>
+        </div>
+      )}
       <TopBar onPatientSelect={(patientId) => {
         setSelectedPatientId(patientId);
       }} />
       <LicenseExpiryAlert />
 
-      {isAuthorized ? (
+      {authState.pendingPanelResolution ? (
+        <div className="flex flex-col items-center justify-center min-h-[40vh] py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
+          <p className="text-slate-500 font-medium">Loading screen...</p>
+        </div>
+      ) : isAuthorized ? (
         <React.Suspense fallback={
           <div className="flex flex-col items-center justify-center min-h-[40vh] py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
@@ -361,9 +430,6 @@ export default function DashboardLayout({
             <p className="text-slate-600 max-w-md mb-8">
               This screen belongs to a different working panel. Your panel is{" "}
               <span className="font-semibold text-slate-900">&quot;{authState.ownPanelPath}&quot;</span>.
-              {authState.ownPanelPath !== "/clinic-panel" && pathname.startsWith("/clinic-panel") && (
-                <> The Clinic Panel is enabled per tenant from the Feature Flags screen.</>
-              )}
             </p>
           ) : (
             <p className="text-slate-600 max-w-md mb-8">

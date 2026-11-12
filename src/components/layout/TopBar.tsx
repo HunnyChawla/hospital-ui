@@ -29,6 +29,10 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/utils/format";
 import { MaskedValue } from "@/components/common/MaskedValue";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
+import {
+  isImpersonationSession,
+  clearImpersonationTabStorage,
+} from "@/utils/authStorage";
 
 const PatientFormModal = dynamic(
   () => import("@/components/patients/PatientFormModal").then((mod) => mod.PatientFormModal),
@@ -65,6 +69,11 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const { toggleMobileSidebar, isMobile } = useSidebar();
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showActiveSessionsModal, setShowActiveSessionsModal] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
+
+  useEffect(() => {
+    setImpersonating(isImpersonationSession());
+  }, []);
   const { enabled: abhaEnabled } = useAbhaFlags();
   const { hasAccess, userRole } = usePermissions();
 
@@ -173,8 +182,16 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   };
 
   const handleLogout = async () => {
+    const wasImpersonating = isImpersonationSession();
     queryClient.clear();
     await dispatch(logout());
+    if (wasImpersonating) {
+      clearImpersonationTabStorage();
+      window.close();
+      const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
+      window.location.replace(`${basePath}/login?reason=user_logout`);
+      return;
+    }
     toast.success("Logged out successfully");
     router.push("/login");
   };
@@ -254,7 +271,11 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                 setShowDropdown(false);
               }
             }}
-            placeholder="Search patients (UHID, mobile, name, ABHA)..."
+            placeholder={
+              abhaEnabled
+                ? "Search patients (UHID, mobile, name, ABHA)..."
+                : "Search patients (UHID, mobile, name)..."
+            }
             className="flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 min-w-0"
           />
           {hasSearched && !isSearching && searchResults.length === 0 && term.trim().length >= 2 && (
@@ -431,30 +452,32 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
               )}
             </div>
 
-            <div className="py-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowActiveSessionsModal(true);
-                  setShowProfileDropdown(false);
-                }}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
-              >
-                <Laptop className="h-4 w-4 text-slate-400 shrink-0" />
-                <span>Active Sessions</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowChangePasswordModal(true);
-                  setShowProfileDropdown(false);
-                }}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
-              >
-                <Key className="h-4 w-4 text-slate-400 shrink-0" />
-                <span>Change Password</span>
-              </button>
-            </div>
+            {!impersonating && (
+              <div className="py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowActiveSessionsModal(true);
+                    setShowProfileDropdown(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+                >
+                  <Laptop className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span>Active Sessions</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePasswordModal(true);
+                    setShowProfileDropdown(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+                >
+                  <Key className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span>Change Password</span>
+                </button>
+              </div>
+            )}
 
             <div className="border-t border-slate-100 py-1">
               <button

@@ -22,9 +22,12 @@ import {
   Eye,
   FlaskConical,
   ShieldAlert,
+  LogIn,
 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { ResetPasswordModal } from "@/components/password/ResetPasswordModal";
+import { ImpersonateConfirmModal } from "@/components/users/ImpersonateConfirmModal";
+import { isPlatformOwner } from "@/utils/auth";
 import { ROLE_LABELS } from "@/constants/screens";
 
 export interface StaffMetrics {
@@ -36,6 +39,7 @@ export interface StaffMetrics {
 
 interface UserTableProps {
   tenantId?: string;
+  tenantName?: string;
   onUserClick?: (userId: string) => void;
   onEditClick?: (user: User) => void;
   roleFilter?: UserRole;
@@ -47,6 +51,7 @@ interface UserTableProps {
 
 export function UserTable({
   tenantId,
+  tenantName,
   onUserClick,
   onEditClick,
   roleFilter,
@@ -62,6 +67,9 @@ export function UserTable({
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [impersonateUser, setImpersonateUser] = useState<User | null>(null);
+
+  const platformOwnerMode = Boolean(tenantId) && isPlatformOwner();
 
   // Check if current user can reset passwords (admin or platform_owner)
   const canResetPassword =
@@ -342,7 +350,7 @@ export function UserTable({
                 </div>
 
                 {/* Mobile Action Buttons (Full-Width Touch Targets >= 44px) */}
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -367,6 +375,21 @@ export function UserTable({
                       Reset Password
                     </button>
                   )}
+                  {platformOwnerMode &&
+                    user.status === "active" &&
+                    user.role !== "platform_owner" && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImpersonateUser(user);
+                        }}
+                        className="flex w-full min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition active:bg-indigo-100"
+                      >
+                        <LogIn className="h-3.5 w-3.5" />
+                        Login As User
+                      </button>
+                    )}
                 </div>
               </div>
             );
@@ -493,6 +516,22 @@ export function UserTable({
                     {/* Desktop Actions */}
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {platformOwnerMode &&
+                          user.status === "active" &&
+                          user.role !== "platform_owner" && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setImpersonateUser(user);
+                              }}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 transition hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                              title="Login as this user in new tab"
+                              aria-label={`Login as ${user.full_name}`}
+                            >
+                              <LogIn className="h-4 w-4" />
+                            </button>
+                          )}
                         {canResetPassword && (
                           <button
                             type="button"
@@ -624,6 +663,17 @@ export function UserTable({
           userId={resetPasswordUser.id}
           userName={resetPasswordUser.full_name}
           tenantId={tenantId}
+        />
+      )}
+
+      {/* Impersonate User Confirmation Modal */}
+      {impersonateUser && tenantId && (
+        <ImpersonateConfirmModal
+          isOpen={!!impersonateUser}
+          onClose={() => setImpersonateUser(null)}
+          user={impersonateUser}
+          tenantId={tenantId}
+          tenantName={tenantName}
         />
       )}
     </>

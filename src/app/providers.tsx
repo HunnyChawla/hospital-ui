@@ -1,6 +1,7 @@
 /* Providers for Redux + React Query + Toasts */
 "use client";
 
+import "@/utils/authStorage";
 import { Provider as ReduxProvider } from "react-redux";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -29,7 +30,10 @@ import { SessionTimeoutWatcher } from "@/components/auth/SessionTimeoutWatcher";
 function GlobalPasswordChangeModal() {
   const { isAuthenticated, mustChangePassword } = useAppSelector((s) => s.auth);
   const pathname = usePathname();
-  const isLoginPage = pathname?.startsWith("/login") || pathname?.startsWith("/tv-login");
+  const isLoginPage =
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/tv-login") ||
+    pathname?.startsWith("/impersonate");
 
   // Only show if user is authenticated, must change password, and not on login page
   if (!isAuthenticated || !mustChangePassword || isLoginPage) {
@@ -47,7 +51,10 @@ function GlobalLegalConsentModal() {
   const dispatch = useAppDispatch();
   const { isAuthenticated, consentRequired, mustChangePassword } = useAppSelector((s) => s.auth);
   const pathname = usePathname();
-  const isLoginPage = pathname?.startsWith("/login") || pathname?.startsWith("/tv-login");
+  const isLoginPage =
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/tv-login") ||
+    pathname?.startsWith("/impersonate");
 
   useEffect(() => {
     const handleConsentRequired = () => {
@@ -82,8 +89,11 @@ export default function Providers({
 
   // Get current pathname to conditionally render sidebar
   const pathname = usePathname();
-  // Handle both /login and /login/ paths, and /tv-login for standalone auth
-  const isLoginPage = pathname?.startsWith("/login") || pathname?.startsWith("/tv-login");
+  // Handle /login, /tv-login, and /impersonate without dashboard chrome
+  const isLoginPage =
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/tv-login") ||
+    pathname?.startsWith("/impersonate");
 
   useEffect(() => {
     // Read tenant_id and role from localStorage

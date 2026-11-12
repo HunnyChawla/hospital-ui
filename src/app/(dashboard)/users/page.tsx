@@ -405,6 +405,7 @@ function UsersPageContent() {
         {canQueryStaff ? (
           <UserTable
             tenantId={effectiveTenantId}
+            tenantName={platformOwner ? selectedTenant?.name : undefined}
             onEditClick={handleEditUser}
             roleFilter={selectedRole === "all" ? undefined : selectedRole}
             statusFilter={selectedStatus === "all" ? undefined : selectedStatus}

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { updateToken, logout } from "@/redux/authSlice";
 import { authApi } from "@/services/authApi";
+import { isImpersonationSession, clearImpersonationTabStorage } from "@/utils/authStorage";
 import { toast } from "sonner";
 import { Clock, AlertTriangle, ShieldAlert, LogOut, CheckCircle2 } from "lucide-react";
 
@@ -79,7 +80,10 @@ export function SessionTimeoutWatcher() {
 
   // Skip on unauthenticated login routes
   const isLoginPage =
-    pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
+    pathname === "/login" ||
+    pathname === "/login/" ||
+    pathname === "/tv-login" ||
+    pathname?.startsWith("/impersonate");
 
   // Activity tracking: timestamp of last detected user interaction
   const lastActivityRef = useRef<number>(Date.now());
@@ -127,10 +131,12 @@ export function SessionTimeoutWatcher() {
       setDeclinedStage1(false);
       lastActivityRef.current = Date.now();
 
+      const durationLabel =
+        result.session_expiry_minutes < 60
+          ? `${result.session_expiry_minutes} minutes`
+          : `${Math.floor(result.session_expiry_minutes / 60)} hours`;
       toast.success("Session Extended", {
-        description: `Your session is now active for another ${Math.floor(
-          result.session_expiry_minutes / 60
-        )} hours.`,
+        description: `Your session is now active for another ${durationLabel}.`,
       });
     } catch (err: any) {
       console.error("Failed to extend session:", err);
@@ -159,6 +165,8 @@ export function SessionTimeoutWatcher() {
     if (typeof window === "undefined") return;
 
     const handleStorageChange = (e: StorageEvent) => {
+      // Impersonation tabs are isolated in sessionStorage and must ignore Tab 1 localStorage events
+      if (isImpersonationSession()) return;
       if (e.key === "auth_token") {
         if (!e.newValue) {
           // Token removed in another tab
@@ -215,6 +223,9 @@ export function SessionTimeoutWatcher() {
           localStorage.removeItem("user_id");
           localStorage.removeItem("tenant_id");
           localStorage.removeItem("role");
+          if (isImpersonationSession()) {
+            clearImpersonationTabStorage();
+          }
           const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
           window.location.href = `${basePath}/login?reason=session_expired`;
         }

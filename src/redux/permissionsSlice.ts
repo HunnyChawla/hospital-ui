@@ -47,7 +47,20 @@ const getStoredPermissions = (): UserPermissions | null => {
       console.log("No permissions found in localStorage.");
       return null;
     }
-    const parsed = JSON.parse(stored);
+    const parsed = JSON.parse(stored) as UserPermissions;
+    const activeRole = (
+      localStorage.getItem("role") ||
+      localStorage.getItem("user_role") ||
+      ""
+    ).toLowerCase();
+    const storedRole = parsed?.role ? String(parsed.role).toLowerCase() : "";
+    if (activeRole && storedRole && storedRole !== activeRole) {
+      console.warn(
+        `Discarding stale cached permissions (cached role=${storedRole}, active role=${activeRole}).`
+      );
+      localStorage.removeItem(PERMISSIONS_STORAGE_KEY);
+      return null;
+    }
     console.log("Successfully retrieved and parsed permissions from localStorage.");
     return parsed;
   } catch (err) {
