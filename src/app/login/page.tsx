@@ -29,6 +29,20 @@ const LoginScene3D = dynamic(
   { ssr: false }
 );
 
+const ROLE_DEFAULT_SCREENS: Record<string, string> = {
+  platform_owner: "/tenants",
+  admin: "/",
+  pharmacist: "/pharmacy",
+  pharmacy_manager: "/pharmacy",
+  receptionist: "/opd",
+  doctor: "/clinic-panel",
+  nurse: "/clinic-panel",
+  optometrist: "/optometrist-panel",
+  examiner: "/clinic-panel",
+  lab_technician: "/lab-technician",
+  counsellor: "/opd",
+};
+
 // ─── Input Field Component with Vibrant Branded Focus Ring ────────────────────
 function InputField({
   id,
@@ -298,7 +312,7 @@ function LoginForm() {
       if (url) navigate(url);
       else {
         const role = typeof window !== "undefined" ? localStorage.getItem("role") : null;
-        router.push(role === "platform_owner" ? "/tenants" : "/");
+        router.push(ROLE_DEFAULT_SCREENS[role || ""] || "/");
       }
     }
   }, [isAuthenticated, router, conflictSessions]);
@@ -360,7 +374,7 @@ function LoginForm() {
         localStorage.setItem("hospital_id", formData.hospital_id);
       }
       const returnUrl = getReturnUrl();
-      const fallback = response.role === "platform_owner" ? "/tenants" : "/";
+      const fallback = ROLE_DEFAULT_SCREENS[response.role] || "/";
       const destScreen = returnUrl || fallback;
 
       if (response.other_active_sessions?.length) {

@@ -238,12 +238,12 @@ export default function DashboardLayout({
 
       const defaultScreen = userPermissions?.default_screen;
 
-      // If root is not in allowed screens but they have a default screen, go there
-      if (defaultScreen && !allowedScreens.includes("/") && defaultScreen !== "/") {
+      // Non-admin roles with a dedicated landing screen should navigate directly to it
+      if (defaultScreen && defaultScreen !== "/") {
         router.push(defaultScreen);
       }
     }
-  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, allowedScreens, router]);
+  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, router]);
 
   useEffect(() => {
     // If consent is required, do NOT fetch domain data yet
@@ -447,7 +447,15 @@ export default function DashboardLayout({
               </button>
             )}
             <button
-              onClick={() => router.push(userPermissions?.default_screen || "/")}
+              onClick={() => {
+                const targetScreen =
+                  userPermissions?.default_screen && userPermissions.default_screen !== "/"
+                    ? userPermissions.default_screen
+                    : allowedScreens.includes("/")
+                    ? "/"
+                    : allowedScreens[0] || "/login";
+                router.push(targetScreen);
+              }}
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-sky-500 text-white font-semibold rounded-xl hover:bg-sky-600 transition shadow-lg shadow-sky-100"
             >
               <HomeIcon className="h-4 w-4" />
