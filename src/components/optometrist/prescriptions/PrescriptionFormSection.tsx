@@ -12,7 +12,6 @@ import {
     CheckCircle,
     AlertCircle,
     Eye,
-    Glasses,
     Clock,
     FileText,
     FileEdit,
@@ -45,6 +44,7 @@ import { formatDate } from "@/utils/format";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import { PrintPreviewModal } from "./PrintPreviewModal";
+import { SpectaclesPowerSelector } from "./SpectaclesPowerSelector";
 import { usePrescriptionPrintLayout } from "@/hooks/queries/usePrintLayout";
 import {
     DiagnosisChips,
@@ -705,6 +705,7 @@ export function PrescriptionFormSection({
                             icon: m.icon,
                             color: m.color,
                             medicine: {
+                                medicine_id: (m as any).medicine_id || m.id,
                                 medicine_name: m.medicine_name,
                                 generic_name: m.generic_name,
                                 brand: m.brand,
@@ -1008,9 +1009,10 @@ export function PrescriptionFormSection({
         const template = medicinesOptions.find(m => m.id === id);
         if (template) {
             appendMedicine({
-                medicine_id: "",
+                medicine_id: template.medicine?.medicine_id || template.id || "",
                 ...template.medicine,
                 side_effects: template.medicine.side_effects || "",
+                update_master: false,
                 update_master_side_effects: false,
                 tapering_steps: template.medicine.tapering_steps
                     ? JSON.parse(JSON.stringify(template.medicine.tapering_steps))
@@ -1095,6 +1097,7 @@ export function PrescriptionFormSection({
             duration,
             instructions,
             side_effects: sideEffects,
+            update_master: false,
             update_master_side_effects: false,
             applicable_eye: "NA",
         });
@@ -1314,51 +1317,8 @@ export function PrescriptionFormSection({
         return items;
     };
 
-    const hasDryRefractionData = examinationData?.refraction ? [
-        examinationData.refraction.od_sphere, examinationData.refraction.os_sphere,
-        examinationData.refraction.od_cylinder, examinationData.refraction.os_cylinder
-    ].some(hasValue) : false;
-
-    const hasDilatedRefractionData = examinationData?.refraction ? [
-        examinationData.refraction.od_dilated_sphere, examinationData.refraction.os_dilated_sphere,
-        examinationData.refraction.od_dilated_cylinder, examinationData.refraction.os_dilated_cylinder
-    ].some(hasValue) : false;
-
-    const currentSpecsRecord = Array.isArray(examinationData?.current_specs)
-        ? examinationData.current_specs[0]
-        : examinationData?.current_specs;
-
-    const hasCurrentGlassData = currentSpecsRecord ? [
-        currentSpecsRecord.od_sph, currentSpecsRecord.os_sph,
-        currentSpecsRecord.od_cyl, currentSpecsRecord.os_cyl
-    ].some(hasValue) : false;
-
-    const formatVal = (val: any, isDiopter: boolean = false): string => {
-        if (val === null || val === undefined || val === "") return "-";
-        const num = typeof val === "number" ? val : parseFloat(String(val));
-        if (isNaN(num)) return String(val);
-        return isDiopter && num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
-    };
-
-    const getDrySummaryText = () => {
-        if (!hasDryRefractionData) return "Not recorded";
-        const r = examinationData?.refraction;
-        return `R: ${formatVal(r?.od_sphere, true)}/${formatVal(r?.od_cylinder, true)} | L: ${formatVal(r?.os_sphere, true)}/${formatVal(r?.os_cylinder, true)}`;
-    };
-
-    const getDilatedSummaryText = () => {
-        if (!hasDilatedRefractionData) return "Not recorded";
-        const r = examinationData?.refraction;
-        return `R: ${formatVal(r?.od_dilated_sphere, true)}/${formatVal(r?.od_dilated_cylinder, true)} | L: ${formatVal(r?.os_dilated_sphere, true)}/${formatVal(r?.os_dilated_cylinder, true)}`;
-    };
-
-    const getCurrentGlassSummaryText = () => {
-        if (!hasCurrentGlassData) return "Not recorded";
-        const s = currentSpecsRecord;
-        return `R: ${formatVal(s?.od_sph, true)}/${formatVal(s?.od_cyl, true)} | L: ${formatVal(s?.os_sph, true)}/${formatVal(s?.os_cyl, true)}`;
-    };
-
     const handleSelectSpecsSource = async (source: "dry" | "dilated" | "current_glass" | "none") => {
+        if (readOnly) return;
         let newItems: OptometryPrescriptionItem[] = [];
         if (source === "dry") {
             newItems = getDryRefractionItems();
@@ -1444,6 +1404,9 @@ export function PrescriptionFormSection({
                 frequency: hasTapering ? "Refer steps" : item.frequency,
                 duration: hasTapering ? "Refer steps" : item.duration,
                 instructions: hasTapering ? "Refer steps" : item.instructions || undefined,
+                side_effects: item.side_effects?.trim() || undefined,
+                update_master: Boolean(item.update_master || item.update_master_side_effects),
+                update_master_side_effects: Boolean(item.update_master || item.update_master_side_effects),
             };
         });
     };
@@ -2142,7 +2105,7 @@ export function PrescriptionFormSection({
                                 {/* Added Medicines List */}
                                 <div className="space-y-4">
                                     {medicineFields.map((field, index) => (
-                                        <div key={field.id} className="relative rounded-xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg hover:border-purple-300 transition-all group/item">
+                                        <div key={field.id} className="@container relative rounded-xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg hover:border-purple-300 transition-all group/item">
                                             <div className="absolute right-3 top-3 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                 <button
                                                     type="button"
@@ -2165,24 +2128,24 @@ export function PrescriptionFormSection({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 items-end">
-                                                <div className={watchedMedicines[index]?.tapering_steps?.length ? "col-span-2 sm:col-span-1" : ""}>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Eye</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-[minmax(85px,0.85fr)_minmax(95px,1fr)_minmax(115px,1.2fr)_minmax(95px,1fr)_minmax(120px,1.25fr)_minmax(140px,1.6fr)] @md:grid-cols-3 @3xl:grid-cols-[minmax(85px,0.85fr)_minmax(95px,1fr)_minmax(115px,1.2fr)_minmax(95px,1fr)_minmax(120px,1.25fr)_minmax(140px,1.6fr)] gap-2.5 sm:gap-3 items-end">
+                                                <div className="col-span-1">
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide truncate">Eye</label>
                                                     <select
                                                         {...register(`medicine_items.${index}.applicable_eye`)}
-                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-2.5 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
                                                     >
                                                         <option value="NA">N/A</option>
-                                                        <option value="BOTH">Both Eyes (OU)</option>
-                                                        <option value="RIGHT">Right Eye (OD)</option>
-                                                        <option value="LEFT">Left Eye (OS)</option>
+                                                        <option value="BOTH">OU (Both)</option>
+                                                        <option value="RIGHT">OD (Right)</option>
+                                                        <option value="LEFT">OS (Left)</option>
                                                     </select>
                                                 </div>
                                                 {(() => {
                                                     const taperingSteps = watchedMedicines[index]?.tapering_steps;
                                                     const hasTapering = taperingSteps && taperingSteps.length > 0;
                                                     return hasTapering ? (
-                                                        <div className="col-span-2 sm:col-span-4 flex justify-end mb-1">
+                                                        <div className="col-span-1 sm:col-span-1 md:col-span-2 xl:col-span-5 @md:col-span-2 @3xl:col-span-5 flex justify-end mb-1">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setValue(`medicine_items.${index}.tapering_steps`, undefined)}
@@ -2195,7 +2158,7 @@ export function PrescriptionFormSection({
                                                     ) : (
                                                         <>
                                                             <div>
-                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide truncate">Dosage</label>
                                                                 <input
                                                                     {...register(`medicine_items.${index}.dosage`)}
                                                                     placeholder="e.g. 500mg"
@@ -2203,7 +2166,7 @@ export function PrescriptionFormSection({
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide truncate">Frequency</label>
                                                                 <Controller
                                                                     control={control}
                                                                     name={`medicine_items.${index}.frequency`}
@@ -2219,7 +2182,7 @@ export function PrescriptionFormSection({
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide truncate">Duration</label>
                                                                 <Controller
                                                                     control={control}
                                                                     name={`medicine_items.${index}.duration`}
@@ -2235,7 +2198,7 @@ export function PrescriptionFormSection({
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide truncate">Instructions</label>
                                                                 <Controller
                                                                     control={control}
                                                                     name={`medicine_items.${index}.instructions`}
@@ -2250,27 +2213,32 @@ export function PrescriptionFormSection({
                                                                     )}
                                                                 />
                                                             </div>
-                                                            <div className="col-span-2">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <label className="text-xs font-bold text-amber-900 block uppercase tracking-wide">
+                                                            <div>
+                                                                <div className="flex items-center justify-between mb-2 gap-1 min-h-[1.25rem]">
+                                                                    <label
+                                                                        className="text-xs font-bold text-amber-900 block uppercase tracking-wide truncate"
+                                                                        title="Side Effects"
+                                                                    >
                                                                         Side Effects
                                                                     </label>
-                                                                    <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                                                                    <label
+                                                                        className="flex items-center gap-1 cursor-pointer select-none text-[10px] font-semibold text-amber-800 shrink-0 hover:text-amber-900"
+                                                                        title="Update in Medicine Master catalog"
+                                                                    >
                                                                         <input
                                                                             type="checkbox"
                                                                             {...register(`medicine_items.${index}.update_master_side_effects` as const)}
                                                                             className="h-3.5 w-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
                                                                         />
-                                                                        <span className="text-[11px] font-semibold text-amber-800">
-                                                                            Update in Medicine Master
-                                                                        </span>
+                                                                        <span className="hidden 2xl:inline @5xl:inline">Update Master</span>
+                                                                        <span className="2xl:hidden @5xl:hidden">Master</span>
                                                                     </label>
                                                                 </div>
                                                                 <input
                                                                     type="text"
                                                                     {...register(`medicine_items.${index}.side_effects` as const)}
-                                                                    placeholder="e.g. Mild nausea, dizziness, drowsiness"
-                                                                    className="w-full rounded-lg border-2 border-amber-200/80 bg-white px-3 py-2 text-sm text-slate-900 font-medium focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/20 transition-all shadow-sm"
+                                                                    placeholder="e.g. Mild nausea, dizziness"
+                                                                    className="w-full rounded-lg border-2 border-amber-200/80 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/20 transition-all shadow-sm hover:border-amber-300"
                                                                 />
                                                             </div>
                                                         </>
@@ -3009,20 +2977,20 @@ export function PrescriptionFormSection({
                         </div>
 
                         {/* CARD 6: Optical / Refraction Details */}
-                        <div className="rounded-2xl border-2 border-indigo-200 bg-white shadow-xl shadow-indigo-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-indigo-300 transition-all duration-300">
+                        <div className="rounded-2xl border-2 border-sky-200 bg-white shadow-xl shadow-sky-100/50 overflow-hidden group/card hover:shadow-2xl hover:border-sky-300 transition-all duration-300">
                             <button
                                 type="button"
                                 onClick={() => setShowOpticalDetails(!showOpticalDetails)}
-                                className="w-full border-b-2 border-indigo-200/70 bg-gradient-to-r from-indigo-100/60 via-slate-50/80 to-white px-6 py-4 flex items-center justify-between hover:from-indigo-100 transition-all"
+                                className="w-full border-b-2 border-sky-100 bg-gradient-to-r from-sky-100/70 via-teal-50/40 to-white px-6 py-4 flex items-center justify-between hover:from-sky-100 transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 border-2 border-white text-white shadow-lg shadow-slate-600/30">
+                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-teal-600 border-2 border-white text-white shadow-lg shadow-sky-500/25">
                                         <Eye className="h-5 w-5" />
                                     </span>
                                     <div className="text-left">
                                         <div className="flex items-center gap-2">
                                             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Optical & Spectacles Advice</h3>
-                                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-700">6</span>
+                                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-sky-100 text-[10px] font-black text-sky-800">6</span>
                                             {selectedSpecsSource !== "none" ? (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800 border border-emerald-300 uppercase tracking-wider">
                                                     <CheckCircle className="h-3 w-3 text-emerald-600" />
@@ -3047,198 +3015,13 @@ export function PrescriptionFormSection({
                             {showOpticalDetails && (
                                 <div className="p-6 space-y-6 animate-in slide-in-from-top-2 duration-200">
                                     {/* Spectacles Power Selection Section */}
-                                    <div className="rounded-2xl border-2 border-indigo-200/90 bg-gradient-to-br from-indigo-50/40 via-white to-sky-50/30 p-5 shadow-xs space-y-4">
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-indigo-100 pb-3">
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
-                                                    <Glasses className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                                                        Spectacle Prescription Power
-                                                        <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full border border-indigo-200">
-                                                            Select 1 to print
-                                                        </span>
-                                                    </h4>
-                                                    <p className="text-xs text-slate-500 font-medium">
-                                                        Only the chosen power is printed on the prescription. Without selecting, no spectacle or refraction values will appear.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {selectedSpecsSource !== "none" && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200 self-start sm:self-auto">
-                                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                                                    Auto-Saved
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* 4 Source Choices */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                            {/* None */}
-                                            <button
-                                                type="button"
-                                                onClick={() => handleSelectSpecsSource("none")}
-                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between cursor-pointer ${
-                                                    selectedSpecsSource === "none"
-                                                        ? "border-slate-800 bg-slate-900 text-white shadow-md ring-2 ring-slate-800/20"
-                                                        : "border-slate-200 bg-white hover:border-slate-400 text-slate-800 hover:bg-slate-50/60"
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="text-xs font-bold uppercase tracking-wider">None</span>
-                                                    {selectedSpecsSource === "none" && (
-                                                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                                                    )}
-                                                </div>
-                                                <p className={`text-[11px] leading-snug ${selectedSpecsSource === "none" ? "text-slate-300" : "text-slate-500"}`}>
-                                                    Do not print any glasses power or refraction
-                                                </p>
-                                            </button>
-
-                                            {/* Dry Refraction */}
-                                            <button
-                                                type="button"
-                                                disabled={!hasDryRefractionData}
-                                                onClick={() => handleSelectSpecsSource("dry")}
-                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between ${
-                                                    !hasDryRefractionData
-                                                        ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed text-slate-400"
-                                                        : selectedSpecsSource === "dry"
-                                                        ? "border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-600/20 cursor-pointer"
-                                                        : "border-indigo-200 bg-white hover:border-indigo-400 text-slate-900 hover:bg-indigo-50/40 cursor-pointer"
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="text-xs font-bold uppercase tracking-wider">Dry Refraction</span>
-                                                    {!hasDryRefractionData ? (
-                                                        <span className="text-[9px] font-semibold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Not recorded</span>
-                                                    ) : selectedSpecsSource === "dry" ? (
-                                                        <CheckCircle className="h-4 w-4 text-white" />
-                                                    ) : null}
-                                                </div>
-                                                <p className={`text-[11px] font-mono leading-tight ${selectedSpecsSource === "dry" ? "text-indigo-100" : "text-slate-600"}`}>
-                                                    {getDrySummaryText()}
-                                                </p>
-                                            </button>
-
-                                            {/* Dilated Refraction */}
-                                            <button
-                                                type="button"
-                                                disabled={!hasDilatedRefractionData}
-                                                onClick={() => handleSelectSpecsSource("dilated")}
-                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between ${
-                                                    !hasDilatedRefractionData
-                                                        ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed text-slate-400"
-                                                        : selectedSpecsSource === "dilated"
-                                                        ? "border-teal-600 bg-teal-600 text-white shadow-md shadow-teal-600/30 ring-2 ring-teal-600/20 cursor-pointer"
-                                                        : "border-teal-200 bg-white hover:border-teal-400 text-slate-900 hover:bg-teal-50/40 cursor-pointer"
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="text-xs font-bold uppercase tracking-wider">Dilated Refraction</span>
-                                                    {!hasDilatedRefractionData ? (
-                                                        <span className="text-[9px] font-semibold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Not recorded</span>
-                                                    ) : selectedSpecsSource === "dilated" ? (
-                                                        <CheckCircle className="h-4 w-4 text-white" />
-                                                    ) : null}
-                                                </div>
-                                                <p className={`text-[11px] font-mono leading-tight ${selectedSpecsSource === "dilated" ? "text-teal-100" : "text-slate-600"}`}>
-                                                    {getDilatedSummaryText()}
-                                                </p>
-                                            </button>
-
-                                            {/* Current Glass */}
-                                            <button
-                                                type="button"
-                                                disabled={!hasCurrentGlassData}
-                                                onClick={() => handleSelectSpecsSource("current_glass")}
-                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between ${
-                                                    !hasCurrentGlassData
-                                                        ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed text-slate-400"
-                                                        : selectedSpecsSource === "current_glass"
-                                                        ? "border-amber-600 bg-amber-600 text-white shadow-md shadow-amber-600/30 ring-2 ring-amber-600/20 cursor-pointer"
-                                                        : "border-amber-200 bg-white hover:border-amber-400 text-slate-900 hover:bg-amber-50/40 cursor-pointer"
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="text-xs font-bold uppercase tracking-wider">Current Glass</span>
-                                                    {!hasCurrentGlassData ? (
-                                                        <span className="text-[9px] font-semibold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Not recorded</span>
-                                                    ) : selectedSpecsSource === "current_glass" ? (
-                                                        <CheckCircle className="h-4 w-4 text-white" />
-                                                    ) : null}
-                                                </div>
-                                                <p className={`text-[11px] font-mono leading-tight ${selectedSpecsSource === "current_glass" ? "text-amber-100" : "text-slate-600"}`}>
-                                                    {getCurrentGlassSummaryText()}
-                                                </p>
-                                            </button>
-                                        </div>
-
-                                        {/* Live Values Table for Selected Power */}
-                                        {selectedSpecsSource !== "none" ? (
-                                            <div className="rounded-xl border border-indigo-200 bg-white p-3.5 shadow-xs space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                        Prescription Power Values to be Printed:
-                                                        <span className="text-indigo-600 font-extrabold">
-                                                            {selectedSpecsSource === "dry" ? "Dry Refraction" : selectedSpecsSource === "dilated" ? "Dilated Refraction" : "Current Glasses"}
-                                                        </span>
-                                                    </span>
-                                                    <span className="text-[11px] text-slate-500 font-medium">
-                                                        Auto-persisted to prescription
-                                                    </span>
-                                                </div>
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-xs border-collapse border border-slate-200 text-center">
-                                                        <thead>
-                                                            <tr className="bg-slate-50 text-slate-700 font-semibold">
-                                                                <th className="border border-slate-200 py-1.5 px-3">Eye</th>
-                                                                <th className="border border-slate-200 py-1.5 px-3">Sphere</th>
-                                                                <th className="border border-slate-200 py-1.5 px-3">Cylinder</th>
-                                                                <th className="border border-slate-200 py-1.5 px-3">Axis</th>
-                                                                <th className="border border-slate-200 py-1.5 px-3">Add</th>
-                                                                <th className="border border-slate-200 py-1.5 px-3">BCVA / VA</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {["OD", "OS"].map((eye) => {
-                                                                const item = specsItems.find(i => i.eye === eye || (eye === "OD" ? i.eye === "RE" : i.eye === "LE"));
-                                                                return (
-                                                                    <tr key={eye} className="hover:bg-slate-50/50">
-                                                                        <td className="border border-slate-200 py-1.5 px-3 font-bold text-slate-900">
-                                                                            {eye === "OD" ? "Right (OD)" : "Left (OS)"}
-                                                                        </td>
-                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
-                                                                            {formatVal(item?.sphere, true)}
-                                                                        </td>
-                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
-                                                                            {formatVal(item?.cylinder, true)}
-                                                                        </td>
-                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
-                                                                            {item?.axis ? `${item.axis}°` : "-"}
-                                                                        </td>
-                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
-                                                                            {formatVal(item?.add_power, true)}
-                                                                        </td>
-                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
-                                                                            {item?.visual_acuity || "-"}
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-3 text-center">
-                                                <p className="text-xs text-slate-500 font-medium">
-                                                    Spectacles power is currently <strong className="text-slate-700">None</strong>. The prescription printout will not show any spectacles or raw refraction tables. Click on Dry, Dilated, or Current Glass above to include spectacles power.
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <SpectaclesPowerSelector
+                                        selectedSource={selectedSpecsSource}
+                                        onSelectSource={handleSelectSpecsSource}
+                                        examinationData={examinationData}
+                                        specsItems={specsItems}
+                                        readOnly={readOnly}
+                                    />
                                     {/* Collapsible Lens Specifications & Coatings Section */}
                                     <div className="rounded-xl border border-slate-200 bg-slate-50/60 overflow-hidden shadow-xs transition-all">
                                         <button
@@ -3589,6 +3372,7 @@ export function PrescriptionFormSection({
                                                 icon: m.icon,
                                                 color: m.color,
                                                 medicine: {
+                                                    medicine_id: (m as any).medicine_id || m.id,
                                                     medicine_name: m.medicine_name,
                                                     generic_name: m.generic_name,
                                                     dosage: m.dosage,
