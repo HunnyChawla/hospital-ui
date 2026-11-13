@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   Globe,
   RefreshCw,
   Save,
@@ -51,6 +52,7 @@ export function ApiPermissionsManager() {
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const [showSyncConfirm, setShowSyncConfirm] = useState<boolean>(false);
 
   // Local state for modified permissions: id -> { allowed_roles, is_public }
   const [dirtyMap, setDirtyMap] = useState<
@@ -88,14 +90,22 @@ export function ApiPermissionsManager() {
     loadPermissions();
   }, [loadPermissions]);
 
-  // Sync from codebase routes
-  const handleSyncRoutes = async () => {
+  // Open sync confirmation modal
+  const handleOpenSyncConfirm = () => {
+    setShowSyncConfirm(true);
+  };
+
+  // Sync from codebase routes (Option A: Full Reset)
+  const executeSyncRoutes = async () => {
     try {
       setSyncing(true);
       const res = await apiPermissionsApi.syncRoutes();
+      const deactStr = res.deactivated_endpoints ? `, ${res.deactivated_endpoints} flagged inactive` : "";
       toast.success(
-        `Routes synchronized: ${res.new_endpoints_added} new added, ${res.updated_endpoints} refreshed (Total: ${res.total_discovered})`
+        `Permissions synchronized to codebase defaults: ${res.new_endpoints_added} new added, ${res.updated_endpoints} reset${deactStr} (Total: ${res.total_discovered})`
       );
+      setShowSyncConfirm(false);
+      setDirtyMap({});
       await loadPermissions();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Route synchronization failed";
@@ -500,7 +510,7 @@ export function ApiPermissionsManager() {
           {/* Action buttons */}
           <div className="flex items-center gap-3">
             <button
-              onClick={handleSyncRoutes}
+              onClick={handleOpenSyncConfirm}
               disabled={syncing || loading}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
               title="Inspect FastAPI codebase routes and sync into database"
@@ -964,6 +974,49 @@ export function ApiPermissionsManager() {
               {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               <span>{saving ? "Saving..." : "Save All"}</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Sync from Codebase (Option A) */}
+      {showSyncConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl transition-all">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Reset Permissions to Codebase Defaults?
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  This action will scan all active route definitions in the backend codebase and
+                  reset allowed roles and metadata across all 720+ endpoints to canonical defaults
+                  (Option A: Full Reset). Any custom permission overrides saved in the database will be overwritten.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowSyncConfirm(false)}
+                disabled={syncing}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeSyncRoutes}
+                disabled={syncing}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-500 disabled:opacity-50"
+              >
+                {syncing && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                <span>{syncing ? "Resetting Defaults..." : "Confirm & Reset Defaults"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

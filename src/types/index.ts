@@ -1031,6 +1031,7 @@ export interface ApiPermissionSyncResponse {
   total_discovered: number;
   new_endpoints_added: number;
   updated_endpoints: number;
+  deactivated_endpoints?: number;
 }
 
 // ============================================
