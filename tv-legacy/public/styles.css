@@ -262,8 +262,13 @@ body {
 }
 
 /* ================================================
-   DISPLAY PAGE STYLES
+   DISPLAY PAGE STYLES (TV Modernized)
    ================================================ */
+
+body.display-page {
+    background-color: #0b1329;
+    color: #f1f5f9;
+}
 
 #display-container {
     width: 100%;
@@ -273,7 +278,9 @@ body {
 
 /* Header */
 #header {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    background-color: #111d38;
+    border-bottom: 1px solid #1e293b;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     transition: all 0.3s ease;
 }
 
@@ -284,11 +291,11 @@ body {
 #header-logo {
     width: 55px;
     height: 55px;
-    background-color: #ffffff;
+    background-color: #1e293b;
     padding: 6px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(14, 165, 233, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 1px solid #334155;
 }
 
 #header-logo img {
@@ -298,55 +305,66 @@ body {
 }
 
 #title {
-    font-size: 30px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%);
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #38bdf8 0%, #2dd4bf 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    color: #0f172a;
+    color: #38bdf8;
     /* Fallback */
     margin: 0;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
 #subtitle {
-    font-size: 14px;
-    color: #64748b;
-    margin: 5px 0 0 0;
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 4px 0 0 0;
     font-weight: 500;
+    letter-spacing: 0.5px;
 }
 
 #doctor-selector-container {
-    background-color: #f1f5f9;
-    padding: 10px 15px;
+    background-color: #1e293b;
+    padding: 8px 14px;
     border-radius: 8px;
+    border: 1px solid #334155;
 }
 
 #doctor-selector-container label {
     font-size: 12px;
     font-weight: bold;
-    color: #64748b;
+    color: #94a3b8;
     margin-right: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 #doctor-selector {
-    padding: 8px 12px;
-    font-size: 14px;
-    border: 2px solid #cbd5e1;
+    padding: 8px 14px;
+    font-size: 15px;
+    border: 1.5px solid #475569;
     border-radius: 6px;
-    background-color: #ffffff;
-    min-width: 200px;
+    background-color: #0f172a;
+    color: #f8fafc;
+    min-width: 220px;
     font-weight: bold;
+    cursor: pointer;
+}
+
+#doctor-selector:focus {
+    outline: none;
+    border-color: #38bdf8;
 }
 
 /* Connection Status */
 #connection-status {
-    background-color: #f8fafc;
+    background-color: #1e293b;
     padding: 8px 16px;
     border-radius: 20px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #334155;
 }
 
 #status-dot {
@@ -360,36 +378,55 @@ body {
 
 .status-connected {
     background-color: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+    animation: ssePulse 2s infinite;
+}
+
+@keyframes ssePulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 4px #22c55e;
+    }
+    50% {
+        opacity: 0.6;
+        box-shadow: 0 0 14px #22c55e;
+    }
 }
 
 .status-polling {
-    background-color: #3b82f6;
+    background-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
 }
 
 .status-connecting {
     background-color: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
 }
 
 .status-error {
     background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
 }
 
 #status-text {
     font-size: 13px;
     font-weight: bold;
-    color: #475569;
+    color: #e2e8f0;
     vertical-align: middle;
 }
 
 /* Clock */
 #clock {
-    font-size: 24px;
-    font-weight: bold;
-    color: #0f172a;
-    background-color: #f1f5f9;
-    padding: 8px 16px;
+    font-size: 26px;
+    font-weight: 800;
+    color: #38bdf8;
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    padding: 8px 18px;
     border-radius: 8px;
     margin-right: 15px;
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
 }
 
 #logout-btn {
@@ -402,28 +439,26 @@ body {
     /* Remove text space */
     color: #ffffff;
     background-color: #ef4444;
-    /* Changed to red for power off feel */
     border: none;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
 }
 
 #logout-btn svg {
     margin-top: 2px;
-    /* Slight adjustment for centering */
 }
 
 #logout-btn:hover {
     background-color: #dc2626;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5);
     transform: translateY(-1px);
 }
 
 #main-content {
     height: calc(100% - 130px);
-    padding: 20px;
+    padding: 16px;
     box-sizing: border-box;
     overflow: hidden;
     transition: all 0.3s ease;
@@ -436,16 +471,16 @@ body {
 
 /* Queue Panels */
 .queue-panel {
-    background-color: #ffffff;
-    border-radius: 12px;
+    background-color: #111d38;
+    border-radius: 14px;
     height: 100%;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    border: 1px solid #1e293b;
 }
 
 .panel-header {
-    padding: 20px 25px;
+    padding: 18px 24px;
     color: #ffffff;
     display: flex;
     justify-content: space-between;
@@ -453,20 +488,28 @@ body {
 }
 
 .optometrist-header {
-    background: linear-gradient(135deg, #0ea5e9 0%, #0891b2 100%);
-    background-color: #0ea5e9;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    background-color: #0284c7;
     /* Fallback */
 }
 
+/* General flow examination header accent */
+body.general-flow .optometrist-header {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    background-color: #7c3aed;
+}
+
 .doctor-header {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
-    background-color: #14b8a6;
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    background-color: #0d9488;
     /* Fallback */
 }
 
 .panel-header h2 {
-    font-size: 22px;
+    font-size: 24px;
+    font-weight: 800;
     margin: 0;
+    letter-spacing: 0.5px;
 }
 
 .stats-row {
@@ -475,50 +518,53 @@ body {
 
 .stat-badge {
     display: inline-block;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.18);
     padding: 6px 14px;
     border-radius: 20px;
-    font-size: 13px;
-    font-weight: bold;
-    margin-right: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    margin-left: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Queue List */
 .queue-list {
-    padding: 15px;
-    height: calc(100% - 100px);
+    padding: 16px;
+    height: calc(100% - 95px);
     overflow-y: auto;
 }
 
 .empty-message {
     text-align: center;
-    color: #94a3b8;
-    font-size: 16px;
-    padding: 40px 20px;
+    color: #64748b;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 60px 20px;
 }
 
 /* Patient Card */
 .patient-card {
-    background-color: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 15px 20px;
+    background-color: #17233f;
+    border: 2px solid #233354;
+    border-radius: 12px;
+    padding: 14px 20px;
     margin-bottom: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .patient-card.status-assigned {
-    background-color: #ecfdf5;
-    border-color: #86efac;
+    background-color: #082820;
+    border-color: #10b981;
 }
 
 .patient-card.status-in-progress {
-    background-color: #fef3c7;
-    border-color: #fcd34d;
+    background-color: #2b1f0c;
+    border-color: #f59e0b;
 }
 
 .patient-card.emergency {
-    background-color: #fef2f2;
-    border-color: #fca5a5;
+    background-color: #331518;
+    border-color: #ef4444;
 }
 
 .patient-card table {
@@ -526,89 +572,117 @@ body {
 }
 
 .token-number {
-    font-size: 28px;
-    font-weight: bold;
-    color: #0f172a;
-    background-color: #e2e8f0;
+    font-size: 34px;
+    font-weight: 900;
+    color: #38bdf8;
+    background-color: #0b1329;
+    border: 1.5px solid #334155;
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: 10px;
     text-align: center;
-    min-width: 60px;
+    min-width: 65px;
+}
+
+.patient-card.status-assigned .token-number {
+    color: #34d399;
+    border-color: #059669;
+}
+
+.patient-card.status-in-progress .token-number {
+    color: #fbbf24;
+    border-color: #d97706;
+}
+
+.patient-card.emergency .token-number {
+    color: #f87171;
+    border-color: #dc2626;
 }
 
 .patient-name {
-    font-size: 18px;
-    font-weight: 900;
-    color: #1e293b;
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.3px;
 }
 
 .patient-uhid {
     font-size: 13px;
-    color: #64748b;
+    color: #94a3b8;
     margin-top: 4px;
+    font-weight: 500;
 }
 
 .patient-status {
-    font-size: 12px;
-    font-weight: bold;
-    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 6px 14px;
     border-radius: 15px;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .status-waiting {
-    background-color: #dbeafe;
-    color: #1d4ed8;
+    background-color: #1e3a5f;
+    color: #93c5fd;
+    border: 1px solid #2563eb;
 }
 
 .status-active {
-    background-color: #dcfce7;
-    color: #15803d;
+    background-color: #064e3b;
+    color: #6ee7b7;
+    border: 1px solid #059669;
+}
+
+.status-in-progress .patient-status {
+    background-color: #451a03;
+    color: #fcd34d;
+    border: 1px solid #d97706;
 }
 
 .cabin-info {
-    font-size: 14px;
-    font-weight: bold;
-    color: #0f172a;
-    background-color: #e0f2fe;
-    padding: 6px 12px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #38bdf8;
+    background-color: #0b1329;
+    border: 1px solid #0284c7;
+    padding: 6px 14px;
     border-radius: 6px;
 }
 
 /* Footer */
 #display-footer {
-    background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
-    padding: 14px 30px;
-    border-top: 2px solid transparent;
-    border-image: linear-gradient(to right, #0ea5e9, #14b8a6) 1;
+    background-color: #0b1329;
+    padding: 12px 30px;
+    border-top: 1px solid #1e293b;
     font-size: 12px;
     color: #64748b;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
 }
 
 #display-footer .footer-brand {
     font-size: 13px;
     line-height: 1.5;
+    color: #94a3b8;
 }
 
 #display-footer .separator {
-    color: #cbd5e1;
+    color: #334155;
     padding: 0 8px;
 }
 
 #display-footer a {
-    color: #0ea5e9;
+    color: #38bdf8;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 #display-footer a:hover {
     text-decoration: underline;
-    color: #0284c7;
+    color: #7dd3fc;
 }
 
 /* Scrollbar Styling (for modern browsers, gracefully ignored by old ones) */
@@ -617,18 +691,18 @@ body {
 }
 
 .queue-list::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #0f172a;
 }
 
 .queue-list::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #334155;
     border-radius: 4px;
 }
 
 /* Animation for new patients (gracefully ignored by old browsers) */
 @keyframes highlight {
     0% {
-        background-color: #fef08a;
+        background-color: #854d0e;
     }
 
     100% {
@@ -946,4 +1020,4 @@ body {
     font-size: 10px;
     color: #475569;
     border: 1px solid #e2e8f0;
-}
+}

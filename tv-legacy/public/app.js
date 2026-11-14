@@ -2,7 +2,7 @@
  * TV Legacy Display - JavaScript Application
  * ES5 Compatible (no arrow functions, const/let, template literals, etc.)
  * Uses XMLHttpRequest instead of fetch
- * Uses polling instead of SSE
+ * Uses SSE (Server-Sent Events) as primary transport with XHR polling as fallback
  */
 
 (function () {
@@ -630,6 +630,96 @@
         }
     }
 
+    var currentDoctorType = 'eye'; // 'eye' or 'general'
+    var currentHasExaminer = false; // for general flow: left panel visibility
+
+    function isEyeHospitalDoctor(specialization) {
+        var spec = (specialization || '').toLowerCase();
+        return spec.indexOf('ophth') !== -1 || spec.indexOf('optom') !== -1;
+    }
+
+    function checkExaminerMapped(doctorId, callback) {
+        var apiUrl = getApiUrl();
+        var token = getAuthToken();
+        ajax({
+            method: 'GET',
+            url: apiUrl + '/opd/examiner-mappings/doctor/' + doctorId,
+            headers: {
+                'Authorization': 'Bearer ' + token
+            },
+            success: function (response) {
+                var items = parseQueueResponse(response);
+                var hasMapped = Array.isArray(items) && items.length > 0;
+                callback(hasMapped);
+            },
+            error: function () {
+                callback(false);
+            }
+        });
+    }
+
+    function setLeftPanelVisible(visible) {
+        var cell = document.getElementById('left-panel-cell');
+        var rightCell = document.getElementById('right-panel-cell');
+        if (!cell) return;
+        if (visible) {
+            cell.style.display = '';
+            if (rightCell) rightCell.style.width = '50%';
+        } else {
+            cell.style.display = 'none';
+            if (rightCell) rightCell.style.width = '100%';
+        }
+    }
+
+    function updatePanelLabels() {
+        var leftTitle = document.getElementById('left-panel-title');
+        var rightTitle = document.getElementById('right-panel-title');
+        if (currentDoctorType === 'eye') {
+            if (leftTitle) leftTitle.innerHTML = '&#128065;&#65039; Eye Examination Queue';
+        } else {
+            if (leftTitle) leftTitle.innerHTML = '&#128300; Examination Queue';
+        }
+        if (rightTitle) rightTitle.innerHTML = '&#129314; Consultation Queue';
+
+        if (currentDoctorType === 'general') {
+            if (document.body.className.indexOf('general-flow') === -1) {
+                document.body.className = (document.body.className + ' general-flow').replace(/\s+/g, ' ').trim();
+            }
+        } else {
+            document.body.className = document.body.className.replace('general-flow', '').replace(/\s+/g, ' ').trim();
+        }
+    }
+
+    function getQueueUrls(doctorId) {
+        var apiUrl = getApiUrl();
+        if (currentDoctorType === 'eye') {
+            return {
+                left: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned',
+                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress,optometrist_investigation_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed,consultation_completed,completed,no_show,checked_in,scheduled'
+            };
+        } else {
+            return {
+                left: apiUrl + '/opd/general/examiner-queue/' + doctorId + '/stream?status=awaiting_examiner,examiner_assigned,examination_in_progress',
+                right: apiUrl + '/opd/general/group-queue/' + doctorId + '/stream?status=awaiting_examiner,examiner_assigned,examination_in_progress,examination_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,consultation_completed,completed,no_show'
+            };
+        }
+    }
+
+    function getPollingUrls(doctorId) {
+        var apiUrl = getApiUrl();
+        if (currentDoctorType === 'eye') {
+            return {
+                left: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '?status=awaiting_optometrist,optometrist_assigned',
+                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress'
+            };
+        } else {
+            return {
+                left: apiUrl + '/opd/general/examiner-queue/' + doctorId + '?status=awaiting_examiner,examiner_assigned,examination_in_progress',
+                right: apiUrl + '/opd/general/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress'
+            };
+        }
+    }
+
     function loadDoctors() {
         var apiUrl = getApiUrl();
         var token = getAuthToken();
@@ -662,6 +752,7 @@
                     var doc = doctors[i];
                     var opt = document.createElement('option');
                     opt.value = doc.id;
+                    opt.setAttribute('data-specialization', doc.specialization || '');
                     opt.innerHTML = doc.user_name || doc.name || ('Dr. ' + (doc.specialization || 'Unknown'));
                     selector.appendChild(opt);
                 }
@@ -675,8 +766,23 @@
                     setSelectedDoctorId(doctors[0].id);
                 }
 
-                // Connect queues (via SSE stream if supported, otherwise polling)
-                connectQueues();
+                var selectedOpt = selector.options[selector.selectedIndex];
+                var spec = selectedOpt ? selectedOpt.getAttribute('data-specialization') : '';
+                currentDoctorType = isEyeHospitalDoctor(spec) ? 'eye' : 'general';
+
+                if (currentDoctorType === 'general') {
+                    checkExaminerMapped(selector.value, function (hasMapped) {
+                        currentHasExaminer = hasMapped;
+                        updatePanelLabels();
+                        setLeftPanelVisible(hasMapped);
+                        connectQueues();
+                    });
+                } else {
+                    currentHasExaminer = false;
+                    updatePanelLabels();
+                    setLeftPanelVisible(true);
+                    connectQueues();
+                }
             },
             error: function (response, status) {
                 var selector = document.getElementById('doctor-selector');
@@ -696,14 +802,30 @@
     window.handleDoctorChange = function () {
         var selector = document.getElementById('doctor-selector');
         if (selector && selector.value) {
+            var selectedOpt = selector.options[selector.selectedIndex];
+            var spec = selectedOpt ? selectedOpt.getAttribute('data-specialization') : '';
+            currentDoctorType = isEyeHospitalDoctor(spec) ? 'eye' : 'general';
+
             setSelectedDoctorId(selector.value);
             // Clear previous queues
             previousOptQueue = [];
             previousDocQueue = [];
             // Reset announcement state for new doctor context
             resetAnnouncementState();
-            // Connect immediately
-            connectQueues();
+
+            if (currentDoctorType === 'general') {
+                checkExaminerMapped(selector.value, function (hasMapped) {
+                    currentHasExaminer = hasMapped;
+                    updatePanelLabels();
+                    setLeftPanelVisible(hasMapped);
+                    connectQueues();
+                });
+            } else {
+                currentHasExaminer = false;
+                updatePanelLabels();
+                setLeftPanelVisible(true);
+                connectQueues();
+            }
         }
     };
 
@@ -716,8 +838,7 @@
     var isSseActive = false;
 
     function isSSESupported() {
-        return (typeof window.EventSource !== 'undefined') ||
-               (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined');
+        return (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined' && typeof AbortController !== 'undefined');
     }
 
     function isHeartbeatMessage(data) {
@@ -826,20 +947,6 @@
                 }
             });
             return controller;
-        } else if (typeof window.EventSource !== 'undefined') {
-            var es = new EventSource(url);
-            es.onmessage = function (event) {
-                try {
-                    var parsed = JSON.parse(event.data);
-                    onMessage(parsed);
-                } catch (e) {
-                    onMessage(event.data);
-                }
-            };
-            es.onerror = function (err) {
-                onError && onError(err);
-            };
-            return es;
         } else {
             onError && onError(new Error('SSE not supported'));
             return null;
@@ -864,9 +971,7 @@
 
             setConnectionStatus('connecting');
 
-            var apiUrl = getApiUrl();
-            var optUrl = apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned';
-            var docUrl = apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress,optometrist_investigation_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed,consultation_completed,completed,no_show,checked_in,scheduled';
+            var urls = getQueueUrls(doctorId);
 
             var sseFailed = false;
             function handleStreamError(err) {
@@ -880,18 +985,22 @@
             }
 
             isSseActive = true;
-            sseOptometristController = connectStream(optUrl, function (data) {
-                if (isHeartbeatMessage(data)) return;
-                var patients = parseQueueResponse(data);
-                renderOptometristQueue(patients);
-                updateOptometristStats(patients);
-                checkForNewAssignments(patients, previousOptQueue, 'optometrist');
-                previousOptQueue = patients;
-                setConnectionStatus('connected', 'sse');
-                updateLastUpdateTime();
-            }, handleStreamError);
 
-            sseDoctorController = connectStream(docUrl, function (data) {
+            // Only connect left queue if visible (eye hospital or general with mapped examiner)
+            if (currentDoctorType === 'eye' || currentHasExaminer) {
+                sseOptometristController = connectStream(urls.left, function (data) {
+                    if (isHeartbeatMessage(data)) return;
+                    var patients = parseQueueResponse(data);
+                    renderOptometristQueue(patients);
+                    updateOptometristStats(patients);
+                    checkForNewAssignments(patients, previousOptQueue, 'optometrist');
+                    previousOptQueue = patients;
+                    setConnectionStatus('connected', 'sse');
+                    updateLastUpdateTime();
+                }, handleStreamError);
+            }
+
+            sseDoctorController = connectStream(urls.right, function (data) {
                 if (isHeartbeatMessage(data)) return;
                 var patients = parseQueueResponse(data);
                 renderDoctorQueue(patients);
@@ -931,48 +1040,50 @@
         var doctorId = getSelectedDoctorId();
         if (!doctorId) return;
 
-        var apiUrl = getApiUrl();
         var token = getAuthToken();
+        var pollUrls = getPollingUrls(doctorId);
 
         setConnectionStatus('connecting');
 
         var baseInterval = CONFIG.POLL_INTERVAL || 5000;
 
-        // Fetch optometrist queue
-        ajax({
-            method: 'GET',
-            url: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '?status=awaiting_optometrist,optometrist_assigned',
-            headers: {
-                'Authorization': 'Bearer ' + token
-            },
-            success: function (response) {
-                queuePollErrors = 0;
-                var patients = parseQueueResponse(response);
-                renderOptometristQueue(patients);
-                updateOptometristStats(patients);
-                checkForNewAssignments(patients, previousOptQueue, 'optometrist');
-                previousOptQueue = patients;
-                setConnectionStatus('connected', 'polling');
-                updateLastUpdateTime();
-                scheduleNextQueuePoll(baseInterval);
-            },
-            error: function (response, status) {
-                queuePollErrors++;
-                if (status === 401) {
-                    handleLogout();
-                    return;
+        // Fetch left queue (optometrist / examiner) only if visible
+        if (currentDoctorType === 'eye' || currentHasExaminer) {
+            ajax({
+                method: 'GET',
+                url: pollUrls.left,
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (response) {
+                    queuePollErrors = 0;
+                    var patients = parseQueueResponse(response);
+                    renderOptometristQueue(patients);
+                    updateOptometristStats(patients);
+                    checkForNewAssignments(patients, previousOptQueue, 'optometrist');
+                    previousOptQueue = patients;
+                    setConnectionStatus('connected', 'polling');
+                    updateLastUpdateTime();
+                    scheduleNextQueuePoll(baseInterval);
+                },
+                error: function (response, status) {
+                    queuePollErrors++;
+                    if (status === 401) {
+                        handleLogout();
+                        return;
+                    }
+                    setConnectionStatus('error');
+                    // Exponential backoff on error: 5s -> 10s -> 20s -> 40s -> max 60s
+                    var backoffDelay = Math.min(baseInterval * Math.pow(2, Math.min(queuePollErrors, 4)), 60000);
+                    scheduleNextQueuePoll(backoffDelay);
                 }
-                setConnectionStatus('error');
-                // Exponential backoff on error: 5s -> 10s -> 20s -> 40s -> max 60s
-                var backoffDelay = Math.min(baseInterval * Math.pow(2, Math.min(queuePollErrors, 4)), 60000);
-                scheduleNextQueuePoll(backoffDelay);
-            }
-        });
+            });
+        }
 
         // Fetch doctor queue
         ajax({
             method: 'GET',
-            url: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
+            url: pollUrls.right,
             headers: {
                 'Authorization': 'Bearer ' + token
             },
@@ -985,6 +1096,9 @@
                 previousDocQueue = patients;
                 setConnectionStatus('connected', 'polling');
                 updateLastUpdateTime();
+                if (!(currentDoctorType === 'eye' || currentHasExaminer)) {
+                    scheduleNextQueuePoll(baseInterval);
+                }
             },
             error: function (response, status) {
                 queuePollErrors++;
@@ -993,6 +1107,10 @@
                     return;
                 }
                 setConnectionStatus('error');
+                if (!(currentDoctorType === 'eye' || currentHasExaminer)) {
+                    var backoffDelay = Math.min(baseInterval * Math.pow(2, Math.min(queuePollErrors, 4)), 60000);
+                    scheduleNextQueuePoll(backoffDelay);
+                }
             }
         });
     }
@@ -1039,7 +1157,7 @@
         // Check for newly assigned patients
         for (var i = 0; i < current.length; i++) {
             var curr = current[i];
-            var isAssigned = (queueType === 'optometrist' && curr.status === 'optometrist_assigned') ||
+            var isAssigned = (queueType === 'optometrist' && (curr.status === 'optometrist_assigned' || curr.status === 'examiner_assigned')) ||
                 (queueType === 'doctor' && curr.status === 'doctor_assigned');
 
             if (!isAssigned) continue;
@@ -1075,7 +1193,7 @@
 
                 // Build announcement text
                 var cabin = queueType === 'optometrist'
-                    ? (curr.optometrist_cabin || null)
+                    ? (curr.optometrist_cabin || curr.examiner_cabin || null)
                     : (curr.doctor_cabin || null);
 
                 var announcementText = generateAnnouncementText(
@@ -1143,11 +1261,16 @@
         var cabin = '';
 
         if (queueType === 'optometrist') {
-            if (patient.status === 'optometrist_assigned') {
+            if (patient.status === 'optometrist_assigned' || patient.status === 'examiner_assigned') {
                 cardClass += ' status-assigned';
                 statusClass = 'status-active';
                 statusText = 'Called';
-                cabin = patient.optometrist_cabin || '';
+                cabin = patient.optometrist_cabin || patient.examiner_cabin || '';
+            } else if (patient.status === 'optometrist_investigation_in_progress' || patient.status === 'examination_in_progress') {
+                cardClass += ' status-in-progress';
+                statusClass = 'status-active';
+                statusText = 'In Progress';
+                cabin = patient.optometrist_cabin || patient.examiner_cabin || '';
             }
         } else {
             if (patient.status === 'doctor_assigned') {
@@ -1198,9 +1321,11 @@
         var inProgress = 0;
 
         for (var i = 0; i < patients.length; i++) {
-            if (patients[i].status === 'awaiting_optometrist') {
+            var status = patients[i].status;
+            if (status === 'awaiting_optometrist' || status === 'awaiting_examiner') {
                 waiting++;
-            } else if (patients[i].status === 'optometrist_assigned') {
+            } else if (status === 'optometrist_assigned' || status === 'examiner_assigned' ||
+                       status === 'optometrist_investigation_in_progress' || status === 'examination_in_progress') {
                 inProgress++;
             }
         }
@@ -1264,8 +1389,12 @@
         }
 
         if (queueType === 'optometrist') {
+            if (currentDoctorType === 'eye') {
+                return 'Patient ' + name + ', token number ' + token +
+                    ', please proceed for eye examination.';
+            }
             return 'Patient ' + name + ', token number ' + token +
-                ', please proceed for eye examination.';
+                ', please proceed for examination.';
         }
 
         // Doctor queue without cabin
