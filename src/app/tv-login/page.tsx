@@ -28,6 +28,33 @@ import Link from "next/link";
 
 const LOCAL_STORAGE_KEY = "tv_display_config";
 
+const MARQUEE_PRESETS = [
+    {
+        id: "health_tips",
+        label: "💡 Health Tips",
+        badge: "HEALTH TIP",
+        text: "Regular health check-ups every 6 months • Practice 20-20-20 rule for digital screens • Stay hydrated throughout the day • Practice deep breathing for stress relief • Eat fresh fruits and vegetables daily",
+    },
+    {
+        id: "clinic_notice",
+        label: "📢 Clinic Notice",
+        badge: "NOTICE",
+        text: "Please keep mobile phones on silent mode in the waiting lounge • Carry your previous prescription and lab reports • Cooperate with nursing staff",
+    },
+    {
+        id: "visiting_hours",
+        label: "🕒 Visiting Hours",
+        badge: "INFO",
+        text: "OPD Timings: Morning 9:00 AM – 2:00 PM | Evening 5:00 PM – 8:00 PM • Emergency Care available 24x7",
+    },
+    {
+        id: "free_camp",
+        label: "🩺 Free Camp",
+        badge: "ANNOUNCEMENT",
+        text: "Free Eye Checkup & Cataract Screening Camp this Sunday from 10:00 AM to 2:00 PM • Prior registration required at counter",
+    },
+];
+
 function TVLoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -52,7 +79,9 @@ function TVLoginContent() {
     const [selectedDoctorIds, setSelectedDoctorIds] = useState<string[]>([]);
     const [layout, setLayout] = useState<"split" | "columns" | "auto">("split");
     const [theme, setTheme] = useState<"dark" | "light">("dark");
-    const [showHealthTips, setShowHealthTips] = useState(true);
+    const [showTicker, setShowTicker] = useState(true);
+    const [tickerTitle, setTickerTitle] = useState("HEALTH TIP");
+    const [tickerText, setTickerText] = useState(MARQUEE_PRESETS[0].text);
     const [voiceAlerts, setVoiceAlerts] = useState(true);
     const [hasPreviousConfig, setHasPreviousConfig] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -68,7 +97,16 @@ function TVLoginContent() {
         if (Array.isArray(cfg.doctorIds)) setSelectedDoctorIds(cfg.doctorIds);
         if (cfg.layout) setLayout(cfg.layout);
         if (cfg.theme) setTheme(cfg.theme);
-        if (typeof cfg.showHealthTips === "boolean") setShowHealthTips(cfg.showHealthTips);
+
+        // Handle ticker visibility (support both showTicker and showHealthTips)
+        if (typeof cfg.showTicker === "boolean") {
+            setShowTicker(cfg.showTicker);
+        } else if (typeof cfg.showHealthTips === "boolean") {
+            setShowTicker(cfg.showHealthTips);
+        }
+
+        if (cfg.tickerTitle) setTickerTitle(cfg.tickerTitle);
+        if (cfg.tickerText) setTickerText(cfg.tickerText);
         if (typeof cfg.voiceAlerts === "boolean") setVoiceAlerts(cfg.voiceAlerts);
         setHasPreviousConfig(true);
     }, []);
@@ -186,7 +224,10 @@ function TVLoginContent() {
             doctorIds: selectedDoctorIds,
             layout,
             theme,
-            showHealthTips,
+            showHealthTips: showTicker,
+            showTicker: showTicker,
+            tickerTitle: tickerTitle.trim() || "HEALTH TIP",
+            tickerText: tickerText.trim() || MARQUEE_PRESETS[0].text,
             voiceAlerts,
             privacyMode: "full",
         };
@@ -264,7 +305,7 @@ function TVLoginContent() {
                             </div>
                             <h3 className="text-2xl font-bold text-white mb-2">TV Display Connected!</h3>
                             <p className="text-slate-300 text-sm mb-6 max-w-sm">
-                                Your selected layout and doctors are now live on the TV screen. You can close this window.
+                                Your selected layout, doctors, and marquee message are now live on the TV screen. You can close this window.
                             </p>
                             <Link
                                 href="/"
@@ -494,6 +535,80 @@ function TVLoginContent() {
                                 </div>
                             </div>
 
+                            {/* Section 4: Bottom Marquee / Ticker Info */}
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-semibold text-slate-200">
+                                        4. Bottom Marquee Banner
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowTicker(!showTicker)}
+                                        className={`text-xs px-3 py-1 rounded-full font-bold transition-all border ${
+                                            showTicker
+                                                ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                                : "bg-slate-800 text-slate-400 border-slate-700"
+                                        }`}
+                                    >
+                                        {showTicker ? "ON" : "OFF"}
+                                    </button>
+                                </div>
+
+                                {showTicker && (
+                                    <div className="p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl space-y-3">
+                                        {/* Presets */}
+                                        <div>
+                                            <div className="text-xs font-medium text-slate-400 mb-1.5">
+                                                Quick Presets
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {MARQUEE_PRESETS.map((p) => (
+                                                    <button
+                                                        key={p.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setTickerTitle(p.badge);
+                                                            setTickerText(p.text);
+                                                        }}
+                                                        className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                                                    >
+                                                        {p.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Badge Title */}
+                                        <div>
+                                            <label className="text-xs font-medium text-slate-400 block mb-1">
+                                                Badge Label
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={tickerTitle}
+                                                onChange={(e) => setTickerTitle(e.target.value.toUpperCase())}
+                                                placeholder="e.g. HEALTH TIP, NOTICE, ANNOUNCEMENT"
+                                                className="w-full text-xs font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-amber-400 focus:outline-none focus:border-amber-500"
+                                            />
+                                        </div>
+
+                                        {/* Custom Textarea */}
+                                        <div>
+                                            <label className="text-xs font-medium text-slate-400 block mb-1">
+                                                Marquee Message (Scrolls across TV)
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                value={tickerText}
+                                                onChange={(e) => setTickerText(e.target.value)}
+                                                placeholder="Type the message or announcement to show on the TV..."
+                                                className="w-full text-xs px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 focus:outline-none focus:border-sky-500 resize-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Advanced Options Toggle */}
                             <div className="pt-1">
                                 <button
@@ -502,7 +617,7 @@ function TVLoginContent() {
                                     className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1.5 font-medium transition-colors"
                                 >
                                     <SlidersHorizontal className="h-3.5 w-3.5" />
-                                    <span>{showAdvanced ? "Hide options" : "More options (Audio & Tips)"}</span>
+                                    <span>{showAdvanced ? "Hide options" : "Audio Announcements"}</span>
                                 </button>
 
                                 {showAdvanced && (
@@ -516,15 +631,6 @@ function TVLoginContent() {
                                                 type="checkbox"
                                                 checked={voiceAlerts}
                                                 onChange={(e) => setVoiceAlerts(e.target.checked)}
-                                                className="w-4 h-4 accent-sky-500 rounded"
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between border-t border-slate-800 pt-2">
-                                            <span className="text-xs text-slate-300">Health Tips Marquee</span>
-                                            <input
-                                                type="checkbox"
-                                                checked={showHealthTips}
-                                                onChange={(e) => setShowHealthTips(e.target.checked)}
                                                 className="w-4 h-4 accent-sky-500 rounded"
                                             />
                                         </div>

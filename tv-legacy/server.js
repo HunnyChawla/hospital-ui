@@ -116,13 +116,28 @@ var server = http.createServer(function (req, res) {
                 res.end('<h1>500 Internal Server Error</h1>');
             }
         } else {
-            // Success - add CORS headers for API requests
-            res.writeHead(200, {
+            // Set cache headers: never cache HTML/JS/CSS so TV always gets latest code
+            var cacheControl = 'no-cache, no-store, must-revalidate, max-age=0';
+            var pragma = 'no-cache';
+            var expires = '0';
+
+            if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.gif' || ext === '.svg' || ext === '.ico' || ext === '.wav' || ext === '.mp3') {
+                cacheControl = 'public, max-age=86400';
+                pragma = '';
+                expires = '';
+            }
+
+            var headers = {
                 'Content-Type': contentType,
+                'Cache-Control': cacheControl,
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            });
+            };
+            if (pragma) headers['Pragma'] = pragma;
+            if (expires) headers['Expires'] = expires;
+
+            res.writeHead(200, headers);
             res.end(data);
         }
     });

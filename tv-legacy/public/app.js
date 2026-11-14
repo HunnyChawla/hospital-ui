@@ -78,8 +78,17 @@
         return getItem('tv_hospital_id') || '';
     }
 
+    var DEFAULT_TICKER_TEXT = 'Regular health check-ups every 6 months \u2022 Practice 20-20-20 rule for digital screens \u2022 Stay hydrated throughout the day \u2022 Practice deep breathing for stress relief \u2022 Eat fresh fruits and vegetables daily \u2022 Maintain good posture while sitting \u2022 Consult your doctor before taking self-medication';
+
     function setHospitalId(id) {
         setItem('tv_hospital_id', id);
+    }
+
+    function isTickerActive(cfg) {
+        if (!cfg) return true;
+        if (cfg.showTicker === false || cfg.showHealthTips === false) return false;
+        if (cfg.show_ticker === false || cfg.show_health_tips === false) return false;
+        return true;
     }
 
     // Display configuration loader & saver
@@ -90,6 +99,9 @@
             layout: 'split', // 'split' | 'columns'
             theme: 'dark',
             showHealthTips: true,
+            showTicker: true,
+            tickerTitle: 'HEALTH TIP',
+            tickerText: DEFAULT_TICKER_TEXT,
             voiceAlerts: true
         };
 
@@ -99,11 +111,37 @@
                 var parsed = JSON.parse(saved);
                 if (parsed && typeof parsed === 'object') {
                     if (typeof parsed.showExaminer === 'boolean') defaultCfg.showExaminer = parsed.showExaminer;
+                    if (typeof parsed.show_examiner === 'boolean') defaultCfg.showExaminer = parsed.show_examiner;
+
                     if (Array.isArray(parsed.doctorIds)) defaultCfg.doctorIds = parsed.doctorIds;
+                    if (Array.isArray(parsed.doctor_ids)) defaultCfg.doctorIds = parsed.doctor_ids;
+
                     if (parsed.layout) defaultCfg.layout = parsed.layout;
                     if (parsed.theme) defaultCfg.theme = parsed.theme;
-                    if (typeof parsed.showHealthTips === 'boolean') defaultCfg.showHealthTips = parsed.showHealthTips;
+
+                    // Marquee visibility: support all key variations
+                    if (typeof parsed.showTicker === 'boolean') {
+                        defaultCfg.showTicker = parsed.showTicker;
+                        defaultCfg.showHealthTips = parsed.showTicker;
+                    } else if (typeof parsed.showHealthTips === 'boolean') {
+                        defaultCfg.showTicker = parsed.showHealthTips;
+                        defaultCfg.showHealthTips = parsed.showHealthTips;
+                    } else if (typeof parsed.show_ticker === 'boolean') {
+                        defaultCfg.showTicker = parsed.show_ticker;
+                        defaultCfg.showHealthTips = parsed.show_ticker;
+                    } else if (typeof parsed.show_health_tips === 'boolean') {
+                        defaultCfg.showTicker = parsed.show_health_tips;
+                        defaultCfg.showHealthTips = parsed.show_health_tips;
+                    }
+
+                    if (parsed.tickerTitle) defaultCfg.tickerTitle = parsed.tickerTitle;
+                    else if (parsed.ticker_title) defaultCfg.tickerTitle = parsed.ticker_title;
+
+                    if (parsed.tickerText) defaultCfg.tickerText = parsed.tickerText;
+                    else if (parsed.ticker_text) defaultCfg.tickerText = parsed.ticker_text;
+
                     if (typeof parsed.voiceAlerts === 'boolean') defaultCfg.voiceAlerts = parsed.voiceAlerts;
+                    else if (typeof parsed.voice_alerts === 'boolean') defaultCfg.voiceAlerts = parsed.voice_alerts;
                 }
             } catch (e) {
                 // ignore
@@ -242,6 +280,45 @@
         var cfg = getDisplayConfig();
         var isDark = cfg.theme !== 'light';
         window.toggleTheme(isDark);
+    }
+
+    function applyTickerPreference() {
+        var cfg = getDisplayConfig();
+        var banner = document.getElementById('ticker-banner');
+        if (!banner) return;
+
+        var isVisible = isTickerActive(cfg);
+        banner.style.display = isVisible ? 'flex' : 'none';
+
+        if (isVisible) {
+            var labelEl = document.getElementById('ticker-label');
+            var textEl = document.getElementById('ticker-text');
+            var iconEl = document.getElementById('ticker-icon');
+
+            var title = (cfg.tickerTitle && cfg.tickerTitle.trim()) ? cfg.tickerTitle.trim() : 'HEALTH TIP';
+            var text = (cfg.tickerText && cfg.tickerText.trim()) ? cfg.tickerText.trim() : DEFAULT_TICKER_TEXT;
+
+            if (labelEl) {
+                if (labelEl.textContent !== undefined) labelEl.textContent = title;
+                else labelEl.innerText = title;
+            }
+            if (textEl) {
+                if (textEl.textContent !== undefined) textEl.textContent = text;
+                else textEl.innerText = text;
+            }
+            if (iconEl) {
+                var lower = title.toLowerCase();
+                if (lower.indexOf('notice') !== -1 || lower.indexOf('announcement') !== -1) {
+                    iconEl.innerHTML = '&#128227;'; // Megaphone
+                } else if (lower.indexOf('hour') !== -1 || lower.indexOf('time') !== -1) {
+                    iconEl.innerHTML = '&#128338;'; // Clock
+                } else if (lower.indexOf('camp') !== -1 || lower.indexOf('free') !== -1) {
+                    iconEl.innerHTML = '&#129658;'; // Stethoscope
+                } else {
+                    iconEl.innerHTML = '&#128161;'; // Light bulb
+                }
+            }
+        }
     }
 
     window.isFullscreenActive = function () {
@@ -505,6 +582,7 @@
 
         loadConfig(function () {
             applyThemePreference();
+            applyTickerPreference();
             updateClock();
             clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
 
@@ -677,6 +755,7 @@
         }
 
         container.innerHTML = html;
+        applyTickerPreference();
     }
 
     function buildQueuePanelHtml(panelId, title, role, cabin, accentClass, tokenAccentClass, isStacked) {
@@ -1019,7 +1098,21 @@
         if (voiceToggle) voiceToggle.checked = (cfg.voiceAlerts !== false);
 
         var tickerToggle = document.getElementById('modal-ticker-toggle');
-        if (tickerToggle) tickerToggle.checked = (cfg.showHealthTips !== false);
+        var tickerActive = isTickerActive(cfg);
+        if (tickerToggle) {
+            tickerToggle.checked = tickerActive;
+            window.handleModalTickerToggle(tickerActive);
+        }
+
+        var tickerLabelInput = document.getElementById('modal-ticker-label');
+        if (tickerLabelInput) {
+            tickerLabelInput.value = cfg.tickerTitle || 'HEALTH TIP';
+        }
+
+        var tickerTextInput = document.getElementById('modal-ticker-text');
+        if (tickerTextInput) {
+            tickerTextInput.value = cfg.tickerText || DEFAULT_TICKER_TEXT;
+        }
 
         // Render Doctor checkboxes
         var docListEl = document.getElementById('modal-doctors-list');
@@ -1061,6 +1154,34 @@
         // Just for visual selection feedback if needed
     };
 
+    window.handleModalTickerToggle = function (isChecked) {
+        var details = document.getElementById('modal-ticker-details');
+        if (details) {
+            details.style.opacity = isChecked ? '1' : '0.4';
+            details.style.pointerEvents = isChecked ? 'auto' : 'none';
+        }
+    };
+
+    window.applyModalTickerPreset = function (type) {
+        var labelInput = document.getElementById('modal-ticker-label');
+        var textInput = document.getElementById('modal-ticker-text');
+        if (!labelInput || !textInput) return;
+
+        if (type === 'tips') {
+            labelInput.value = 'HEALTH TIP';
+            textInput.value = 'Regular health check-ups every 6 months \u2022 Practice 20-20-20 rule for digital screens \u2022 Stay hydrated throughout the day \u2022 Practice deep breathing for stress relief \u2022 Eat fresh fruits and vegetables daily \u2022 Maintain good posture while sitting \u2022 Consult your doctor before taking self-medication';
+        } else if (type === 'notice') {
+            labelInput.value = 'CLINIC NOTICE';
+            textInput.value = 'Please keep your mobile phones on silent mode in the consultation area \u2022 Report to reception desk if you need immediate assistance \u2022 Sanitizer dispensers are available near all room entrances';
+        } else if (type === 'hours') {
+            labelInput.value = 'VISITING HOURS';
+            textInput.value = 'OPD Consultation: Mon - Sat 9:00 AM to 7:00 PM \u2022 Pharmacy & Diagnostic Services: 8:00 AM to 9:00 PM \u2022 Emergency Services open 24/7';
+        } else if (type === 'camp') {
+            labelInput.value = 'FREE HEALTH CAMP';
+            textInput.value = 'Free Blood Sugar & BP Screening this Saturday 10:00 AM - 2:00 PM \u2022 Register at reception desk for complimentary eye checkup and consultation';
+        }
+    };
+
     window.saveSetupModal = function () {
         var cfg = getDisplayConfig();
 
@@ -1077,17 +1198,27 @@
         var optToggle = document.getElementById('modal-optometrist-toggle');
         if (optToggle) cfg.showExaminer = optToggle.checked;
 
-        // Read Voice & Ticker
+        // Read Voice
         var voiceToggle = document.getElementById('modal-voice-toggle');
         if (voiceToggle) cfg.voiceAlerts = voiceToggle.checked;
 
+        // Read Ticker settings
         var tickerToggle = document.getElementById('modal-ticker-toggle');
+        var tickerLabelInput = document.getElementById('modal-ticker-label');
+        var tickerTextInput = document.getElementById('modal-ticker-text');
+
         if (tickerToggle) {
-            cfg.showHealthTips = tickerToggle.checked;
-            var tickerBanner = document.getElementById('ticker-banner');
-            if (tickerBanner) {
-                tickerBanner.style.display = tickerToggle.checked ? 'flex' : 'none';
-            }
+            var isTickerOn = tickerToggle.checked;
+            cfg.showTicker = isTickerOn;
+            cfg.showHealthTips = isTickerOn;
+        }
+
+        if (tickerLabelInput && tickerLabelInput.value) {
+            cfg.tickerTitle = tickerLabelInput.value.replace(/^\s+|\s+$/g, '');
+        }
+
+        if (tickerTextInput && tickerTextInput.value) {
+            cfg.tickerText = tickerTextInput.value.replace(/^\s+|\s+$/g, '');
         }
 
         // Read Selected Doctors
@@ -1102,6 +1233,7 @@
 
         // Save & apply
         saveDisplayConfig(cfg);
+        applyTickerPreference();
         closeSetupModal();
 
         // Re-render layout immediately

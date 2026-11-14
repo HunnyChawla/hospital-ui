@@ -6,6 +6,9 @@ export interface TVDisplayConfig {
     layout: "split" | "columns" | "auto";
     theme: "dark" | "light";
     showHealthTips?: boolean;
+    showTicker?: boolean;
+    tickerTitle?: string;
+    tickerText?: string;
     privacyMode?: "full" | "initials" | "token_only";
     voiceAlerts?: boolean;
 }

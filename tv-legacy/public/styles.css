@@ -1303,6 +1303,118 @@ body.theme-light .modal-doc-spec {
     cursor: pointer;
 }
 
+/* Modal Ticker Customization Controls */
+.modal-ticker-details {
+    padding: 12px;
+    background-color: #071322;
+    border: 1px solid #1c3b60;
+    border-radius: 8px;
+    margin-top: 10px;
+    transition: opacity 0.2s ease;
+}
+
+body.theme-light .modal-ticker-details {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.modal-sub-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+body.theme-light .modal-sub-label {
+    color: #64748b;
+}
+
+.ticker-presets-row {
+    margin-bottom: 8px;
+}
+
+.ticker-preset-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.preset-btn {
+    background-color: #0e2238;
+    border: 1px solid #1f3d63;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+    background-color: #1a365d;
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+body.theme-light .preset-btn {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+body.theme-light .preset-btn:hover {
+    background-color: #f1f5f9;
+    border-color: #0284c7;
+    color: #0f172a;
+}
+
+.modal-field-row {
+    margin-top: 8px;
+}
+
+.modal-text-input,
+.modal-textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: #0b1a2d;
+    border: 1px solid #1c3b60;
+    color: #ffffff;
+    font-size: 12px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.modal-text-input:focus,
+.modal-textarea:focus {
+    outline: none;
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+body.theme-light .modal-text-input,
+body.theme-light .modal-textarea {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+body.theme-light .modal-text-input:focus,
+body.theme-light .modal-textarea:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.modal-textarea {
+    resize: vertical;
+    min-height: 52px;
+}
+
 .modal-footer {
     padding: 16px 24px;
     border-top: 1px solid #172d47;

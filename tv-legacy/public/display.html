@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CURA - Patient Queue Display</title>
     <script>
@@ -11,7 +14,7 @@
             window.location.replace('/tv-legacy/' + window.location.search);
         }
     </script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20261115_03">
 </head>
 
 <body class="display-page theme-dark">
@@ -73,11 +76,11 @@
             </div>
         </div>
 
-        <!-- Health Tip Marquee Ticker -->
-        <div id="ticker-banner">
+        <!-- Health Tip / Marquee Ticker -->
+        <div id="ticker-banner" style="display: none;">
             <div class="ticker-badge">
-                <span class="ticker-icon">&#128161;</span>
-                <span class="ticker-label">HEALTH TIP</span>
+                <span class="ticker-icon" id="ticker-icon">&#128161;</span>
+                <span class="ticker-label" id="ticker-label">HEALTH TIP</span>
             </div>
             <div class="ticker-track">
                 <div class="ticker-content" id="ticker-text">
@@ -159,15 +162,42 @@
                         </div>
                     </div>
 
-                    <!-- Display Options -->
+                    <!-- Bottom Marquee Ticker Settings -->
+                    <div class="modal-section">
+                        <label class="modal-checkbox-row">
+                            <input type="checkbox" id="modal-ticker-toggle" checked onchange="handleModalTickerToggle(this.checked)">
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-text">
+                                <strong>Show Bottom Marquee Ticker Banner</strong>
+                                <span class="checkbox-desc">Displays scrolling health tips or clinic notices at screen bottom</span>
+                            </span>
+                        </label>
+                        <div id="modal-ticker-details" class="modal-ticker-details">
+                            <div class="ticker-presets-row">
+                                <span class="modal-sub-label">Quick Presets:</span>
+                                <div class="ticker-preset-btns">
+                                    <button type="button" class="preset-btn" onclick="applyModalTickerPreset('tips')">💡 Health Tips</button>
+                                    <button type="button" class="preset-btn" onclick="applyModalTickerPreset('notice')">📢 Clinic Notice</button>
+                                    <button type="button" class="preset-btn" onclick="applyModalTickerPreset('hours')">🕒 Visiting Hours</button>
+                                    <button type="button" class="preset-btn" onclick="applyModalTickerPreset('camp')">🩺 Free Camp</button>
+                                </div>
+                            </div>
+                            <div class="modal-field-row">
+                                <label class="modal-sub-label" for="modal-ticker-label">Badge Label</label>
+                                <input type="text" id="modal-ticker-label" class="modal-text-input" placeholder="e.g. HEALTH TIP, CLINIC NOTICE" maxlength="30">
+                            </div>
+                            <div class="modal-field-row">
+                                <label class="modal-sub-label" for="modal-ticker-text">Ticker Content</label>
+                                <textarea id="modal-ticker-text" class="modal-textarea" rows="2" placeholder="Enter scrolling announcement or health information..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voice Announcements Option -->
                     <div class="modal-section modal-options-row">
                         <label class="modal-checkbox-inline">
                             <input type="checkbox" id="modal-voice-toggle" checked>
-                            <span>Voice Announcements</span>
-                        </label>
-                        <label class="modal-checkbox-inline">
-                            <input type="checkbox" id="modal-ticker-toggle" checked>
-                            <span>Health Tips Ticker</span>
+                            <span>Voice Announcements (Chime & Audio)</span>
                         </label>
                     </div>
                 </div>
@@ -210,7 +240,7 @@
         <source src="assets/notification.mp3" type="audio/mpeg">
     </audio>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20261115_03"></script>
     <script>
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initDisplay);
