@@ -22,9 +22,15 @@ import {
     Pencil,
     Sparkles,
     AlertTriangle,
+    Globe,
 } from "lucide-react";
 import { toast } from "sonner";
-import { abhaApi, type TenantAbdmConfigDto } from "@/services/abhaApi";
+import {
+    abhaApi,
+    type TenantAbdmConfigDto,
+    type BridgeUrlConfigDto,
+    type TestBridgeUrlResponseDto,
+} from "@/services/abhaApi";
 import { useFeatureFlags, resolveAbdmEnabled } from "@/hooks/useFeatureFlags";
 import { tenantsApi, type Tenant } from "@/services/tenantsApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -96,6 +102,16 @@ export function FeatureFlagManagement() {
     const [editHipId, setEditHipId] = useState("");
     const [editHipName, setEditHipName] = useState("");
     const [isEditing, setIsEditing] = useState(false);
+
+    // Platform ABDM Bridge Management State (Platform Owner only)
+    const [bridgeUrlConfig, setBridgeUrlConfig] = useState<BridgeUrlConfigDto | null>(null);
+    const [loadingBridgeUrl, setLoadingBridgeUrl] = useState<boolean>(false);
+    const [isBridgeUrlModalOpen, setIsBridgeUrlModalOpen] = useState<boolean>(false);
+    const [bridgeUrlInput, setBridgeUrlInput] = useState<string>("");
+    const [testConnectivityOnSave, setTestConnectivityOnSave] = useState<boolean>(true);
+    const [isTestingBridge, setIsTestingBridge] = useState<boolean>(false);
+    const [isUpdatingBridge, setIsUpdatingBridge] = useState<boolean>(false);
+    const [bridgeTestResult, setBridgeTestResult] = useState<TestBridgeUrlResponseDto | null>(null);
 
     // Close dropdown on click outside
     useEffect(() => {
@@ -304,6 +320,25 @@ export function FeatureFlagManagement() {
         fetchAbdmConfig();
     }, [fetchAbdmConfig]);
 
+    const fetchBridgeUrl = useCallback(async () => {
+        if (!isPlatformOwner) return;
+        try {
+            setLoadingBridgeUrl(true);
+            const cfg = await abhaApi.getBridgeUrl(true);
+            setBridgeUrlConfig(cfg);
+        } catch (err: unknown) {
+            console.error("Failed to load bridge URL config", err);
+        } finally {
+            setLoadingBridgeUrl(false);
+        }
+    }, [isPlatformOwner]);
+
+    useEffect(() => {
+        if (isPlatformOwner) {
+            fetchBridgeUrl();
+        }
+    }, [isPlatformOwner, fetchBridgeUrl]);
+
     const openOnboardModal = () => {
         setOnboardHipId(abdmConfig?.hip_id || "");
         setOnboardHipName(abdmConfig?.hip_name || selectedTenant?.name || "");
@@ -381,6 +416,52 @@ export function FeatureFlagManagement() {
             toast.error(msg);
         } finally {
             setIsEditing(false);
+        }
+    };
+
+    const handleTestBridgeUrl = async () => {
+        if (!bridgeUrlInput.trim()) {
+            toast.error("Bridge URL cannot be empty");
+            return;
+        }
+        try {
+            setIsTestingBridge(true);
+            setBridgeTestResult(null);
+            const res = await abhaApi.testBridgeUrl(bridgeUrlInput.trim());
+            setBridgeTestResult(res);
+            if (res.is_healthy) {
+                toast.success(`Bridge is reachable (${res.latency_ms ? Math.round(res.latency_ms) : 0}ms)`);
+            } else {
+                toast.error(res.error || "Bridge is not reachable");
+            }
+        } catch (err: unknown) {
+            const msg = getErrorMessage(err) || "Failed to test bridge reachability";
+            toast.error(msg);
+        } finally {
+            setIsTestingBridge(false);
+        }
+    };
+
+    const handleSaveBridgeUrl = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!bridgeUrlInput.trim()) {
+            toast.error("Bridge URL cannot be empty");
+            return;
+        }
+        try {
+            setIsUpdatingBridge(true);
+            const updated = await abhaApi.updateBridgeUrl({
+                bridge_url: bridgeUrlInput.trim(),
+                test_connectivity: testConnectivityOnSave,
+            });
+            setBridgeUrlConfig(updated);
+            toast.success("Platform Bridge URL updated successfully");
+            setIsBridgeUrlModalOpen(false);
+        } catch (err: unknown) {
+            const msg = getErrorMessage(err) || "Failed to update Bridge URL";
+            toast.error(msg);
+        } finally {
+            setIsUpdatingBridge(false);
         }
     };
 
@@ -885,6 +966,58 @@ export function FeatureFlagManagement() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Platform Owner: Active Bridge URL and Configuration */}
+                        {isPlatformOwner && (
+                            <div className="mt-3.5 pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2 flex-wrap text-xs">
+                                    <Globe className="h-3.5 w-3.5 text-indigo-600" />
+                                    <span className="font-semibold text-slate-700">Platform Bridge URL:</span>
+                                    {loadingBridgeUrl ? (
+                                        <span className="inline-flex items-center gap-1 text-slate-400">
+                                            <Loader2 className="h-3 w-3 animate-spin text-slate-400" /> Checking...
+                                        </span>
+                                    ) : bridgeUrlConfig ? (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-mono text-xs bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-medium">
+                                                {bridgeUrlConfig.bridge_url}
+                                            </span>
+                                            {bridgeUrlConfig.is_healthy ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                                    Online {bridgeUrlConfig.latency_ms ? `(${Math.round(bridgeUrlConfig.latency_ms)}ms)` : ""}
+                                                </span>
+                                            ) : bridgeUrlConfig.is_healthy === false ? (
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"
+                                                    title={bridgeUrlConfig.error_detail || "Bridge offline"}
+                                                >
+                                                    <AlertTriangle className="h-3 w-3 text-rose-600" />
+                                                    Unreachable
+                                                </span>
+                                            ) : null}
+                                            <span className="text-2xs font-medium text-slate-400 uppercase">
+                                                [{bridgeUrlConfig.source}]
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-slate-400">Not configured</span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setBridgeUrlInput(bridgeUrlConfig?.bridge_url || "https://sbx.bridge.technesian.com");
+                                        setBridgeTestResult(null);
+                                        setIsBridgeUrlModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                                >
+                                    <Globe className="h-3.5 w-3.5 text-indigo-600" />
+                                    Configure Bridge URL
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-4">
@@ -1327,6 +1460,156 @@ export function FeatureFlagManagement() {
                                         </>
                                     ) : (
                                         "Save Details"
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Modal: Configure ABDM Bridge URL (Platform Owner only) */}
+            {isBridgeUrlModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+                        <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Globe className="h-4 w-4 text-indigo-600" />
+                                <h3 className="text-base font-semibold text-slate-900">Configure ABDM Bridge URL</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsBridgeUrlModalOpen(false)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveBridgeUrl} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Bridge Base URL <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="url"
+                                    required
+                                    value={bridgeUrlInput}
+                                    onChange={(e) => setBridgeUrlInput(e.target.value)}
+                                    placeholder="https://sbx.bridge.technesian.com"
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    All outbound ABHA and ABDM M1/M2/M3 calls will route through this bridge service.
+                                </p>
+                            </div>
+
+                            {/* Quick Presets */}
+                            <div>
+                                <span className="block text-2xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                                    Quick Presets
+                                </span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBridgeUrlInput("https://sbx.bridge.technesian.com")}
+                                        className="px-2.5 py-1 text-xs rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-mono transition-colors cursor-pointer"
+                                    >
+                                        Sandbox (sbx)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBridgeUrlInput("https://bridge.technesian.com")}
+                                        className="px-2.5 py-1 text-xs rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-mono transition-colors cursor-pointer"
+                                    >
+                                        Production
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Connectivity Test Section */}
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-slate-700">Test Reachability</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleTestBridgeUrl}
+                                        disabled={isTestingBridge}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer"
+                                    >
+                                        {isTestingBridge ? (
+                                            <>
+                                                <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
+                                                Pinging...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RefreshCw className="h-3 w-3 text-slate-500" />
+                                                Ping /health
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {bridgeTestResult && (
+                                    <div className={`p-2.5 rounded-lg border text-xs flex items-start gap-2 ${
+                                        bridgeTestResult.is_healthy
+                                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                            : "border-rose-200 bg-rose-50 text-rose-800"
+                                    }`}>
+                                        {bridgeTestResult.is_healthy ? (
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                                        ) : (
+                                            <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                                        )}
+                                        <div className="flex-1 space-y-0.5">
+                                            <p className="font-semibold">
+                                                {bridgeTestResult.is_healthy ? "Bridge is reachable" : "Connectivity failed"}
+                                                {bridgeTestResult.latency_ms ? ` (${Math.round(bridgeTestResult.latency_ms)}ms latency)` : ""}
+                                            </p>
+                                            {bridgeTestResult.error && (
+                                                <p className="text-2xs opacity-90 break-all">{bridgeTestResult.error}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Verify before saving checkbox */}
+                            <label className="flex items-center gap-2 cursor-pointer pt-1">
+                                <input
+                                    type="checkbox"
+                                    checked={testConnectivityOnSave}
+                                    onChange={(e) => setTestConnectivityOnSave(e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs text-slate-600">
+                                    Verify bridge health check before saving
+                                </span>
+                            </label>
+
+                            <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsBridgeUrlModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isUpdatingBridge}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+                                >
+                                    {isUpdatingBridge ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="h-3.5 w-3.5" />
+                                            Save & Apply
+                                        </>
                                     )}
                                 </button>
                             </div>

@@ -9,6 +9,29 @@ export interface TenantAbdmConfigDto {
   updated_by?: string | null;
 }
 
+export interface BridgeUrlConfigDto {
+  bridge_url: string;
+  source: string;
+  is_healthy?: boolean | null;
+  latency_ms?: number | null;
+  error_detail?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
+}
+
+export interface UpdateBridgeUrlRequestDto {
+  bridge_url: string;
+  test_connectivity?: boolean;
+}
+
+export interface TestBridgeUrlResponseDto {
+  bridge_url: string;
+  is_healthy: boolean;
+  status_code?: number | null;
+  latency_ms?: number | null;
+  error?: string | null;
+}
+
 export interface TenantAbdmOnboardDto {
   tenant_id: string;
   hip_id: string;
@@ -509,6 +532,25 @@ export const abhaApi = {
       req,
       { params }
     );
+    return response.data;
+  },
+
+  async getBridgeUrl(checkHealth: boolean = false): Promise<BridgeUrlConfigDto> {
+    const response = await apiClient.get<BridgeUrlConfigDto>("/abha/admin/bridge-url", {
+      params: { check_health: checkHealth },
+    });
+    return response.data;
+  },
+
+  async updateBridgeUrl(req: UpdateBridgeUrlRequestDto): Promise<BridgeUrlConfigDto> {
+    const response = await apiClient.put<BridgeUrlConfigDto>("/abha/admin/bridge-url", req);
+    return response.data;
+  },
+
+  async testBridgeUrl(bridgeUrl: string): Promise<TestBridgeUrlResponseDto> {
+    const response = await apiClient.post<TestBridgeUrlResponseDto>("/abha/admin/bridge-url/test", {
+      bridge_url: bridgeUrl,
+    });
     return response.data;
   },
 };
