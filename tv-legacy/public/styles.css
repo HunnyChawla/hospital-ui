@@ -37,12 +37,12 @@ body {
 }
 
 #login-box {
-    width: 480px;
-    max-width: 90%;
+    width: 520px;
+    max-width: 92%;
     background-color: #0d1e33;
     border: 1px solid #1c3b60;
     border-radius: 18px;
-    padding: 40px;
+    padding: 32px 36px;
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
     color: #f1f5f9;
 }
@@ -125,22 +125,46 @@ body {
 
 #qr-login-container {
     text-align: center;
-    padding: 20px 0;
+    padding: 10px 0;
+}
+
+.qr-scan-title {
+    margin-bottom: 10px;
+}
+
+.qr-pill-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 9999px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.qr-pill-desktop {
+    background-color: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #34d399;
 }
 
 #qr-login-container p {
     color: #cbd5e1;
-    font-size: 16px;
-    margin-bottom: 16px;
+    font-size: 14px;
+    margin-bottom: 12px;
 }
 
 #qr-placeholder {
-    width: 230px;
-    height: 230px;
-    margin: 0 auto 16px;
+    width: 190px;
+    height: 190px;
+    margin: 0 auto 12px;
     background: #ffffff;
-    border-radius: 14px;
-    padding: 12px;
+    border-radius: 12px;
+    padding: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -156,13 +180,97 @@ body {
 #qr-loading {
     color: #0f172a;
     font-weight: 600;
+    font-size: 13px;
+}
+
+.tv-code-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 18px 0 14px;
+}
+
+.tv-code-divider::before,
+.tv-code-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #1c3b60;
+}
+
+.tv-code-divider span {
+    padding: 0 10px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.tv-code-instructions-box {
+    background-color: #071322;
+    border: 1px solid #1c3b60;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.tv-instruction-heading {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.tv-nav-steps {
     font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 4px 0 6px;
+}
+
+.tv-nav-steps strong {
+    color: #38bdf8;
+}
+
+.tv-instruction-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tv-pairing-code-badge {
+    background-color: #030a14;
+    border: 2px dashed #0284c7;
+    border-radius: 10px;
+    padding: 6px 16px;
+    display: inline-block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 5px;
+    color: #38bdf8;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+    margin: 4px 0 6px;
+}
+
+.tv-direct-url-note {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.tv-direct-url-note span {
+    color: #94a3b8;
+    font-weight: 600;
 }
 
 #qr-timer {
-    font-size: 14px;
+    font-size: 13px;
     color: #38bdf8;
     font-weight: 600;
+    margin-top: 6px;
 }
 
 #footer-text {

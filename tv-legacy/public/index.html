@@ -58,11 +58,32 @@
                         </form>
 
                         <div id="qr-login-container">
-                            <p>Scan with <strong>Cura Mobile App</strong> to login</p>
+                            <div class="qr-scan-title">
+                                <span class="qr-pill-tag">Option 1 • Mobile Scan</span>
+                                <p>Scan with phone camera or <strong>Cura Mobile App</strong></p>
+                            </div>
                             <div id="qr-placeholder">
                                 <img id="qr-code-img" src="" alt="Scan QR Code" style="display: none;">
                                 <div id="qr-loading">Generating Code...</div>
                             </div>
+
+                            <div class="tv-code-divider">
+                                <span>OR CONNECT FROM COMPUTER</span>
+                            </div>
+
+                            <div class="tv-code-instructions-box">
+                                <span class="qr-pill-tag qr-pill-desktop">Option 2 • From Your Computer</span>
+                                <p class="tv-instruction-heading">In Cura application, go to:</p>
+                                <p class="tv-nav-steps">
+                                    <strong>Profile Menu</strong> &rarr; <strong>Connect TV Display</strong>
+                                </p>
+                                <p class="tv-instruction-sub">and enter this Pairing Code:</p>
+                                <div class="tv-pairing-code-badge" id="tv-pairing-code-badge" title="Enter this pairing code in Cura">
+                                    <span id="tv-pairing-code">--------</span>
+                                </div>
+                                <p class="tv-direct-url-note">Or directly open: <span id="tv-login-url-text">cura.technesian.com/tv-login</span></p>
+                            </div>
+
                             <div id="qr-timer"></div>
                         </div>
 

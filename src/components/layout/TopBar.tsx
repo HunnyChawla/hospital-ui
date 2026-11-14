@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   LayoutDashboard,
   Scale,
+  Tv,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -451,6 +452,18 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                   <span>Dashboard Settings</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileDropdown(false);
+                  router.push("/tv-login");
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+              >
+                <Tv className="h-4 w-4 text-slate-400 shrink-0" />
+                <span>Connect TV Display</span>
+              </button>
             </div>
 
             {!impersonating && (

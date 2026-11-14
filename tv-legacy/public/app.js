@@ -71,7 +71,27 @@
     }
 
     function getTenantId() {
-        return getItem('tv_tenant_id');
+        var tid = getItem('tv_tenant_id');
+        if (tid) return tid;
+
+        // Fallback: parse from JWT token payload if available
+        var token = getAuthToken();
+        if (token) {
+            try {
+                var parts = token.split('.');
+                if (parts.length >= 2) {
+                    var payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+                    var payload = JSON.parse(payloadStr);
+                    if (payload && payload.tenant_id) {
+                        setItem('tv_tenant_id', payload.tenant_id);
+                        return payload.tenant_id;
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+        return null;
     }
 
     function getHospitalId() {
@@ -363,6 +383,12 @@
         if (timerEl) timerEl.innerHTML = '';
         qrSessionCode = null;
 
+        var pairingCodeEl = document.getElementById('tv-pairing-code');
+        if (pairingCodeEl) pairingCodeEl.innerHTML = '--------';
+
+        var urlTextEl = document.getElementById('tv-login-url-text');
+        if (urlTextEl) urlTextEl.innerHTML = window.location.host + '/tv-login';
+
         var requestData = {};
         if (hospitalId) requestData.hospital_id = hospitalId;
 
@@ -373,6 +399,10 @@
             success: function (response) {
                 qrSessionCode = response.session_code;
                 qrExpiryTime = new Date(response.expires_at).getTime();
+
+                if (pairingCodeEl) {
+                    pairingCodeEl.innerHTML = response.session_code;
+                }
 
                 var directQrUrl = apiUrl.replace(/\/$/, '') + '/auth/tv/qr/' + qrSessionCode;
                 var qrSrc = response.qr_image_url || directQrUrl;
@@ -439,7 +469,9 @@
                 } else if (res.status === 'expired') {
                     stopQRLogin();
                     var timerEl = document.getElementById('qr-timer');
-                    if (timerEl) timerEl.innerHTML = '<span style="color:#ef4444;">Session expired. Please refresh.</span>';
+                    if (timerEl) timerEl.innerHTML = '<span style="color:#ef4444; cursor:pointer;" onclick="initQRLogin()">Session expired. <u>Click here to refresh</u></span>';
+                    var codeEl = document.getElementById('tv-pairing-code');
+                    if (codeEl) codeEl.innerHTML = 'EXPIRED';
                 }
             },
             error: function () {
@@ -462,7 +494,9 @@
 
             if (distance < 0) {
                 clearInterval(qrTimerInterval);
-                timerEl.innerHTML = '<span style="color:#ef4444;">EXPIRED</span>';
+                timerEl.innerHTML = '<span style="color:#ef4444; cursor:pointer;" onclick="initQRLogin()">Code expired. <u>Click to refresh</u></span>';
+                var codeEl = document.getElementById('tv-pairing-code');
+                if (codeEl) codeEl.innerHTML = 'EXPIRED';
                 return;
             }
 
@@ -642,10 +676,13 @@
     function loadHospitalInfo() {
         var apiUrl = getApiUrl();
         var token = getAuthToken();
+        var tenantId = getTenantId();
+
+        if (!token || !tenantId) return;
 
         ajax({
             method: 'GET',
-            url: apiUrl + '/tenants/current',
+            url: apiUrl + '/tenants/' + tenantId,
             headers: { 'Authorization': 'Bearer ' + token },
             success: function (res) {
                 var name = res.name || res.hospital_name;

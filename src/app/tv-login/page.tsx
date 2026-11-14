@@ -59,10 +59,12 @@ function TVLoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const dispatch = useAppDispatch();
-    const { isAuthenticated, loading: authLoading } = useAppSelector((s) => s.auth);
+    const { isAuthenticated, loading: authLoading, user, userDetails } = useAppSelector((s) => s.auth);
 
     const [isRestored, setIsRestored] = useState(false);
     const [code, setCode] = useState<string | null>(null);
+    const [manualCode, setManualCode] = useState("");
+    const [validatingCode, setValidatingCode] = useState(false);
     const [hospital, setHospital] = useState<string | null>(null);
     const [sessionInfo, setSessionInfo] = useState<TVSessionInfo | null>(null);
     const [loading, setLoading] = useState(true);
@@ -111,9 +113,10 @@ function TVLoginContent() {
         setHasPreviousConfig(true);
     }, []);
 
-    const fetchSessionInfo = useCallback(async (sessionCode: string) => {
+    const fetchSessionInfo = useCallback(async (sessionCode: string): Promise<boolean> => {
         try {
             setLoading(true);
+            setError(null);
             const info = await tvAuthApi.getSessionInfo(sessionCode);
             setSessionInfo(info);
 
@@ -133,16 +136,19 @@ function TVLoginContent() {
 
             if (!info.can_authorize) {
                 if (info.status === "authenticated") {
-                    setError("This session has already been authorized.");
+                    setError("This TV session has already been authorized.");
                 } else if (info.status === "expired") {
-                    setError("This QR code has expired. Please refresh the TV screen.");
+                    setError("This TV pairing code has expired. Please refresh the TV screen.");
                 } else {
-                    setError(`Session is in ${info.status} state.`);
+                    setError(`TV session is in ${info.status} state.`);
                 }
+                return false;
             }
+            return true;
         } catch (err) {
             console.error(err);
-            setError("Failed to fetch session information.");
+            setError("Failed to find TV session. Please verify the code on your TV screen.");
+            return false;
         } finally {
             setLoading(false);
         }
@@ -170,13 +176,6 @@ function TVLoginContent() {
         const codeParam = searchParams.get("code");
         const hospitalParam = searchParams.get("hospital");
 
-        if (!codeParam) {
-            setError("Invalid QR Code: Missing session code.");
-            setLoading(false);
-            return;
-        }
-
-        setCode(codeParam);
         setHospital(hospitalParam);
 
         // Wait for restoration and auth loading
@@ -184,7 +183,9 @@ function TVLoginContent() {
             if (!isAuthenticated) {
                 // Redirect to login with canonical return URL
                 const hospitalQuery = hospitalParam ? `&hospital=${encodeURIComponent(hospitalParam)}` : "";
-                const returnUrl = `/tv-login/?code=${encodeURIComponent(codeParam)}${hospitalQuery}`;
+                const returnUrl = codeParam
+                    ? `/tv-login/?code=${encodeURIComponent(codeParam)}${hospitalQuery}`
+                    : `/tv-login`;
                 if (typeof window !== "undefined") {
                     sessionStorage.setItem("tv_login_return_url", returnUrl);
                     if (hospitalParam) {
@@ -195,11 +196,49 @@ function TVLoginContent() {
                 return;
             }
 
-            // Fetch session info & doctors
-            fetchSessionInfo(codeParam);
-            loadDoctorsList();
+            if (codeParam) {
+                setCode(codeParam);
+                fetchSessionInfo(codeParam);
+                loadDoctorsList();
+            } else {
+                setLoading(false);
+            }
         }
     }, [searchParams, isAuthenticated, authLoading, router, isRestored, fetchSessionInfo, loadDoctorsList]);
+
+    const handleConnectCode = async (e?: React.FormEvent) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const clean = manualCode.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        if (clean.length !== 8) {
+            toast.error("Please enter a valid 8-character pairing code.");
+            return;
+        }
+
+        try {
+            setValidatingCode(true);
+            setError(null);
+            const ok = await fetchSessionInfo(clean);
+            if (ok) {
+                setCode(clean);
+                await loadDoctorsList();
+                toast.success(`Connected to TV Display (${clean})`);
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Invalid or expired pairing code. Please check your TV screen.");
+        } finally {
+            setValidatingCode(false);
+        }
+    };
+
+    const handleResetCode = () => {
+        setCode(null);
+        setSessionInfo(null);
+        setError(null);
+        setSuccess(false);
+        setManualCode("");
+        router.replace("/tv-login");
+    };
 
     const toggleDoctor = (id: string) => {
         setSelectedDoctorIds((prev) => {
@@ -284,19 +323,28 @@ function TVLoginContent() {
                             <Loader2 className="h-8 w-8 animate-spin mb-3 text-sky-400" />
                             <p className="text-sm">Connecting to TV session...</p>
                         </div>
-                    ) : error ? (
+                    ) : error && code ? (
                         <div className="flex flex-col items-center justify-center text-center py-6">
                             <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center justify-center mb-4 text-rose-400">
                                 <XCircle className="h-8 w-8" />
                             </div>
                             <h3 className="text-xl font-bold text-white mb-2">Connection Notice</h3>
                             <p className="text-slate-300 text-sm mb-6">{error}</p>
-                            <Link
-                                href="/"
-                                className="w-full py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold transition-colors text-center text-sm"
-                            >
-                                Go to Dashboard
-                            </Link>
+                            <div className="w-full flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleResetCode}
+                                    className="flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold transition text-center text-sm cursor-pointer"
+                                >
+                                    Enter Code Manually
+                                </button>
+                                <Link
+                                    href="/"
+                                    className="flex-1 py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold transition-colors text-center text-sm"
+                                >
+                                    Go to Dashboard
+                                </Link>
+                            </div>
                         </div>
                     ) : success ? (
                         <div className="flex flex-col items-center justify-center text-center py-8">
@@ -305,15 +353,99 @@ function TVLoginContent() {
                             </div>
                             <h3 className="text-2xl font-bold text-white mb-2">TV Display Connected!</h3>
                             <p className="text-slate-300 text-sm mb-6 max-w-sm">
-                                Your selected layout, doctors, and marquee message are now live on the TV screen. You can close this window.
+                                Your selected layout, doctors, and marquee message are now live on the TV screen ({code}).
                             </p>
-                            <Link
-                                href="/"
-                                className="w-full py-3 px-4 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold transition-colors text-center text-sm"
-                            >
-                                Back to Dashboard
-                            </Link>
+                            <div className="w-full flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleResetCode}
+                                    className="flex-1 py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold transition text-center text-sm cursor-pointer"
+                                >
+                                    Pair Another TV
+                                </button>
+                                <Link
+                                    href="/"
+                                    className="flex-1 py-3 px-4 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold transition-colors text-center text-sm"
+                                >
+                                    Back to Dashboard
+                                </Link>
+                            </div>
                         </div>
+                    ) : !code ? (
+                        /* Manual Pairing Code Entry Screen */
+                        <form onSubmit={handleConnectCode} className="space-y-6">
+                            <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
+                                        📺
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-semibold text-white">Find Pairing Code on TV</h3>
+                                        <p className="text-xs text-slate-400 leading-relaxed">
+                                            Turn on the waiting area TV display. Under <strong>Option 2</strong> on the TV login screen, you will see an 8-character Pairing Code.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider text-center">
+                                    Enter 8-Character TV Pairing Code
+                                </label>
+                                <div className="max-w-xs mx-auto">
+                                    <input
+                                        type="text"
+                                        value={manualCode}
+                                        onChange={(e) => {
+                                            setManualCode(e.target.value.toUpperCase());
+                                            setError(null);
+                                        }}
+                                        placeholder="e.g. K9X2B7Q4"
+                                        maxLength={12}
+                                        autoFocus
+                                        className="w-full text-center font-mono text-2xl tracking-[0.3em] font-bold py-3.5 px-4 bg-slate-900 border-2 border-slate-700 focus:border-sky-500 rounded-xl text-sky-400 placeholder:text-slate-600 focus:outline-none transition-colors shadow-inner uppercase"
+                                    />
+                                </div>
+                                <p className="text-[11px] text-slate-400 text-center">
+                                    Case-insensitive • Hyphens &amp; spaces ignored automatically
+                                </p>
+                            </div>
+
+                            {error && (
+                                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2">
+                                    <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
+                            <div className="pt-2 space-y-3">
+                                <button
+                                    type="submit"
+                                    disabled={validatingCode || !manualCode.trim()}
+                                    className="w-full rounded-xl bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-500 px-4 py-3.5 text-base font-bold text-white shadow-lg shadow-teal-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-teal-500/35 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    {validatingCode ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                            <span>Connecting to TV...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Tv className="h-5 w-5" />
+                                            <span>Pair &amp; Configure TV</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => router.push("/")}
+                                    className="w-full py-2 text-xs text-slate-400 hover:text-slate-200 font-medium transition-colors text-center cursor-pointer"
+                                >
+                                    Back to Dashboard
+                                </button>
+                            </div>
+                        </form>
                     ) : (
                         <div className="space-y-6">
                             {/* Hospital & Session Info */}
@@ -325,10 +457,20 @@ function TVLoginContent() {
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Session</div>
-                                    <span className="font-mono text-sm bg-slate-800 text-sky-400 px-2 py-0.5 rounded border border-slate-700 font-bold">
-                                        {code}
-                                    </span>
+                                    <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Pairing Code</div>
+                                    <div className="flex items-center justify-end gap-2 mt-0.5">
+                                        <span className="font-mono text-sm bg-slate-800 text-sky-400 px-2 py-0.5 rounded border border-slate-700 font-bold tracking-wider">
+                                            {code}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={handleResetCode}
+                                            className="text-[11px] text-slate-400 hover:text-sky-300 underline cursor-pointer"
+                                            title="Connect to a different TV screen"
+                                        >
+                                            Change TV
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
