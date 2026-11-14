@@ -195,9 +195,11 @@ export default function DashboardLayout({
     authorized: boolean;
     ownPanelPath: string | null;
     pendingPanelResolution?: boolean;
+    loadingPermissions?: boolean;
   } => {
-    if (!permissionsInitialized || permissionsLoading || !isAuthenticated)
-      return { authorized: true, ownPanelPath: null };
+    if (!isAuthenticated) return { authorized: false, ownPanelPath: null };
+    if (!permissionsInitialized || permissionsLoading)
+      return { authorized: false, ownPanelPath: null, loadingPermissions: true };
 
     // Panel routing: each doctor/examiner/optometrist belongs on their designated panel
     // (resolver shared with Sidebar so the two cannot drift)
@@ -406,10 +408,12 @@ export default function DashboardLayout({
       }} />
       <LicenseExpiryAlert />
 
-      {authState.pendingPanelResolution ? (
+      {authState.loadingPermissions || authState.pendingPanelResolution ? (
         <div className="flex flex-col items-center justify-center min-h-[40vh] py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
-          <p className="text-slate-500 font-medium">Loading screen...</p>
+          <p className="text-slate-500 font-medium">
+            {authState.loadingPermissions ? "Verifying access..." : "Loading screen..."}
+          </p>
         </div>
       ) : isAuthorized ? (
         <React.Suspense fallback={

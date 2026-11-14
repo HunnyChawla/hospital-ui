@@ -5,6 +5,8 @@ import {
   INPUT_SANITIZATION_ENABLED,
   scanPayloadForSpecialChars,
 } from "../utils/inputSanitization";
+import { getQueryClient } from "../lib/react-query";
+import { isImpersonationSession, clearImpersonationTabStorage } from "../utils/authStorage";
 
 // Lazy initialization to ensure window.__ENV is loaded before baseURL is set
 let _apiClient: ReturnType<typeof axios.create> | null = null;
@@ -102,6 +104,12 @@ const getApiClient = () => {
         if (status === 401 || (status === 403 && isTerminated)) {
           if (typeof window !== "undefined" && !isRedirectingToLogin) {
             isRedirectingToLogin = true;
+            try {
+              getQueryClient().clear();
+            } catch {}
+            if (isImpersonationSession()) {
+              clearImpersonationTabStorage();
+            }
             localStorage.removeItem("auth_token");
             localStorage.removeItem("user_id");
             localStorage.removeItem("tenant_id");

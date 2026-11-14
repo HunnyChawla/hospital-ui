@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { PharmacyNav } from "@/components/pharmacy/PharmacyNav";
 import { Pagination } from "@/components/common/Pagination";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import {
   pharmacyApi,
   PrescriptionQueueItem,
@@ -552,9 +553,14 @@ export default function DispensingQueuePage() {
                       {/* Patient */}
                       <td className="py-3 px-4 align-top">
                         <div className="font-semibold text-slate-900">{item.patient_name}</div>
-                        <div className="text-[11px] font-mono text-slate-600">
-                          {item.patient_uhid}
-                          {item.patient_mobile ? ` · ${item.patient_mobile}` : ""}
+                        <div className="text-[11px] font-mono text-slate-600 flex items-center gap-1">
+                          <span>{item.patient_uhid}</span>
+                          {item.patient_mobile && (
+                            <>
+                              <span>·</span>
+                              <MaskedValue type="mobile" value={item.patient_mobile} size="xs" />
+                            </>
+                          )}
                         </div>
                       </td>
 

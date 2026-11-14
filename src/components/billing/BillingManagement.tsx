@@ -14,6 +14,7 @@ import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePayment
 import { InvoiceCreateModal } from "@/components/invoices/InvoiceCreateModal";
 import { Modal } from "@/components/common/Modal";
 import { Pagination } from "@/components/common/Pagination";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
 import { BillingTransactionsPrint } from "@/components/billing/BillingTransactionsPrint";
 import { useReactToPrint } from "react-to-print";
@@ -516,7 +517,7 @@ export function BillingManagement({
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       toast.success("Billing transactions exported successfully");
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
@@ -784,7 +785,7 @@ export function BillingManagement({
                   {txn.patient_mobile && (
                     <>
                       <span className="text-slate-300">•</span>
-                      <span className="text-slate-500">{txn.patient_mobile}</span>
+                      <MaskedValue type="mobile" value={txn.patient_mobile} size="xs" />
                     </>
                   )}
                 </div>
@@ -984,7 +985,7 @@ export function BillingManagement({
                 {txn.patient_mobile && (
                   <>
                     <span className="text-slate-300">•</span>
-                    <span className="text-slate-500">{txn.patient_mobile}</span>
+                    <MaskedValue type="mobile" value={txn.patient_mobile} size="xs" />
                   </>
                 )}
               </div>
@@ -1590,7 +1591,9 @@ export function BillingManagement({
                   <div>
                     <p className="text-sm font-bold text-slate-900">{selectedInvoice.patient_name}</p>
                     {selectedInvoice.patient_mobile && (
-                      <p className="text-xs text-slate-500">{selectedInvoice.patient_mobile}</p>
+                      <div className="text-xs text-slate-500">
+                        <MaskedValue type="mobile" value={selectedInvoice.patient_mobile} size="xs" />
+                      </div>
                     )}
                   </div>
                 </div>

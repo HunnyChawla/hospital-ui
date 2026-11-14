@@ -40,6 +40,7 @@ export function PaymentCollectionModal({
 
   // Split payment state
   const [splitRows, setSplitRows] = useState<SplitPaymentRow[]>([]);
+  const [collectedOffset, setCollectedOffset] = useState(0);
 
   // Reset form when modal opens/closes or invoice changes
   useEffect(() => {
@@ -50,6 +51,7 @@ export function PaymentCollectionModal({
       setPaymentReference("");
       setNotes("");
       setIsSplitMode(false);
+      setCollectedOffset(0);
       setSplitRows([
         { id: "1", amount: Math.floor(balance / 2), paymentMethod: "cash", paymentReference: "" },
         { id: "2", amount: Math.ceil(balance / 2), paymentMethod: "upi", paymentReference: "" },
@@ -60,6 +62,7 @@ export function PaymentCollectionModal({
       setPaymentReference("");
       setNotes("");
       setIsSplitMode(false);
+      setCollectedOffset(0);
       setSplitRows([]);
     }
   }, [isOpen, invoice]);
@@ -124,13 +127,17 @@ export function PaymentCollectionModal({
         }
       }
 
-      const balance = invoice.balance_amount ?? invoice.total_amount - (invoice.paid_amount || 0);
-      if (totalSplitAmount > balance) {
-        toast.error(`Total split amount (${currency(totalSplitAmount)}) exceeds outstanding balance (${currency(balance)})`);
+      const rawBalance = invoice.balance_amount ?? invoice.total_amount - (invoice.paid_amount || 0);
+      const remainingBalance = Math.max(0, Math.round((rawBalance - collectedOffset) * 100) / 100);
+      const roundedTotalSplit = Math.round(totalSplitAmount * 100) / 100;
+      if (roundedTotalSplit > remainingBalance) {
+        toast.error(`Total split amount (${currency(roundedTotalSplit)}) exceeds outstanding balance (${currency(remainingBalance)})`);
         return;
       }
 
       setIsSubmitting(true);
+      let completedCount = 0;
+      let collectedBatchAmount = 0;
       try {
         let lastPayment: Payment | undefined;
         for (let i = 0; i < splitRows.length; i++) {
@@ -145,14 +152,26 @@ export function PaymentCollectionModal({
               : `Split payment ${i + 1}/${splitRows.length}`,
           };
           lastPayment = await paymentsApi.create(paymentData, effectiveTenantId);
+          completedCount++;
+          collectedBatchAmount += row.amount;
         }
 
         toast.success(`Successfully collected ${splitRows.length} split payments totalling ${currency(totalSplitAmount)}!`);
         onSuccess?.(lastPayment);
         onClose();
       } catch (error) {
-        const errorMessage = getErrorMessage(error);
-        toast.error(errorMessage || "Failed to collect split payment");
+        if (completedCount > 0) {
+          // Prune successfully recorded rows so they are never charged twice upon retry
+          setSplitRows((prev) => prev.slice(completedCount));
+          setCollectedOffset((prev) => prev + collectedBatchAmount);
+          const remainingAmount = Math.max(0, Math.round((roundedTotalSplit - collectedBatchAmount) * 100) / 100);
+          toast.error(
+            `Recorded ${completedCount} of ${splitRows.length} payments (${currency(collectedBatchAmount)} saved). Failed on payment #${completedCount + 1}. Please retry the remaining ${currency(remainingAmount)}.`
+          );
+        } else {
+          const errorMessage = getErrorMessage(error);
+          toast.error(errorMessage || "Failed to collect split payment");
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -198,7 +217,8 @@ export function PaymentCollectionModal({
     return null;
   }
 
-  const balanceAmount = invoice.balance_amount ?? invoice.total_amount - (invoice.paid_amount || 0);
+  const rawBalance = invoice.balance_amount ?? invoice.total_amount - (invoice.paid_amount || 0);
+  const balanceAmount = Math.max(0, Math.round((rawBalance - collectedOffset) * 100) / 100);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Collect Payment" size={isSplitMode ? "lg" : "md"}>
@@ -231,8 +251,9 @@ export function PaymentCollectionModal({
         <div className="flex items-center justify-between rounded-xl bg-slate-100 p-1 text-xs font-semibold">
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={() => setIsSplitMode(false)}
-            className={`flex-1 rounded-lg py-1.5 transition ${
+            className={`flex-1 rounded-lg py-1.5 transition disabled:opacity-50 ${
               !isSplitMode
                 ? "bg-white text-slate-900 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
@@ -242,8 +263,9 @@ export function PaymentCollectionModal({
           </button>
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={() => setIsSplitMode(true)}
-            className={`flex items-center justify-center gap-1.5 flex-1 rounded-lg py-1.5 transition ${
+            className={`flex items-center justify-center gap-1.5 flex-1 rounded-lg py-1.5 transition disabled:opacity-50 ${
               isSplitMode
                 ? "bg-white text-sky-700 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
@@ -266,9 +288,10 @@ export function PaymentCollectionModal({
                 max={balanceAmount}
                 arrowStep={10}
                 value={paymentAmount}
+                disabled={isSubmitting}
                 onValueChange={(val) => setPaymentAmount(parseFloat(val) || 0)}
                 autoComplete="off"
-                className="w-full rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-2 outline-none focus:border-sky-400"
+                className="w-full rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-2 outline-none focus:border-sky-400 disabled:opacity-50"
                 required
               />
               <p className="text-xs text-slate-500">Maximum: {currency(balanceAmount)}</p>
@@ -280,11 +303,12 @@ export function PaymentCollectionModal({
               </span>
               <select
                 value={paymentMethod}
+                disabled={isSubmitting}
                 onChange={(e) => {
                   setPaymentMethod(e.target.value as PaymentMethod);
                   setPaymentReference("");
                 }}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 disabled:opacity-50"
                 required
               >
                 <option value="cash">Cash</option>
@@ -302,13 +326,14 @@ export function PaymentCollectionModal({
                 <input
                   type="text"
                   value={paymentReference}
+                  disabled={isSubmitting}
                   onChange={(e) => setPaymentReference(e.target.value)}
                   placeholder={`Enter ${paymentMethod.toUpperCase()} reference`}
                   autoComplete="off"
                   data-lpignore="true"
                   data-1p-ignore="true"
                   data-bwignore="true"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 disabled:opacity-50"
                   required
                 />
               </label>
@@ -321,8 +346,9 @@ export function PaymentCollectionModal({
               <span className="text-xs font-bold text-slate-700">Split Breakdown</span>
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={addSplitRow}
-                className="flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition"
+                className="flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add Method
@@ -339,8 +365,9 @@ export function PaymentCollectionModal({
                       {splitRows.length > 1 && (
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={() => removeSplitRow(row.id)}
-                          className="text-slate-400 hover:text-rose-600 transition"
+                          className="text-slate-400 hover:text-rose-600 transition disabled:opacity-50"
                           title="Remove"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -351,8 +378,9 @@ export function PaymentCollectionModal({
                       <div className="col-span-4">
                         <select
                           value={row.paymentMethod}
+                          disabled={isSubmitting}
                           onChange={(e) => updateSplitRow(row.id, { paymentMethod: e.target.value as PaymentMethod, paymentReference: "" })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 disabled:opacity-50"
                         >
                           <option value="cash">Cash</option>
                           <option value="upi">UPI</option>
@@ -365,9 +393,10 @@ export function PaymentCollectionModal({
                           min="0.01"
                           max={balanceAmount}
                           value={row.amount}
+                          disabled={isSubmitting}
                           onValueChange={(val) => updateSplitRow(row.id, { amount: parseFloat(val) || 0 })}
                           placeholder="Amount"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 disabled:opacity-50"
                           required
                         />
                       </div>
@@ -375,9 +404,10 @@ export function PaymentCollectionModal({
                         <input
                           type="text"
                           value={row.paymentReference}
+                          disabled={isSubmitting}
                           onChange={(e) => updateSplitRow(row.id, { paymentReference: e.target.value })}
                           placeholder={needsRef ? "Reference *" : "Reference"}
-                          className={`w-full rounded-lg border bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 ${
+                          className={`w-full rounded-lg border bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 disabled:opacity-50 ${
                             needsRef && !row.paymentReference.trim() ? "border-amber-300 bg-amber-50/30" : "border-slate-200"
                           }`}
                           required={needsRef}
@@ -406,10 +436,11 @@ export function PaymentCollectionModal({
           <span className="text-slate-600 text-xs font-semibold">Notes (Optional)</span>
           <textarea
             value={notes}
+            disabled={isSubmitting}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Add any notes about this payment"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-sky-400 resize-none"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-sky-400 resize-none disabled:opacity-50"
           />
         </label>
 
