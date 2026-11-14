@@ -4,7 +4,7 @@
  *
  * - optometrists always get the optometrist panel (/optometrist-panel)
  * - examiners always get the clinic panel (/clinic-panel)
- * - ophthalmologist doctors get the optometrist panel (/optometrist-panel)
+ * - ophthalmologist doctors get the doctor panel (/doctor-panel)
  * - other doctors get the clinic panel (/clinic-panel)
  */
 
@@ -22,5 +22,5 @@ export function resolvePanelPathForUser(
   const normalizedSpec = specialization?.toLowerCase() ?? "";
   const isEyeSpecialist =
     normalizedSpec.includes("ophth") || normalizedSpec.includes("optom");
-  return isEyeSpecialist ? "/optometrist-panel" : "/clinic-panel";
+  return isEyeSpecialist ? "/doctor-panel" : "/clinic-panel";
 }

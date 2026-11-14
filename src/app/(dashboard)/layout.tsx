@@ -230,7 +230,7 @@ export default function DashboardLayout({
   }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors]);
   const isAuthorized = authState.authorized;
 
-  // Handle redirection to default screen if root (/) is not the intended start page
+  // Handle redirection to default screen if root (/) is not in allowed screens
   useEffect(() => {
     if (permissionsInitialized && !permissionsLoading && isAuthenticated && pathname === "/") {
       if (userRole === "platform_owner") {
@@ -240,12 +240,12 @@ export default function DashboardLayout({
 
       const defaultScreen = userPermissions?.default_screen;
 
-      // Non-admin roles with a dedicated landing screen should navigate directly to it
-      if (defaultScreen && defaultScreen !== "/") {
+      // If root is not in allowed screens but they have a default screen, go there
+      if (defaultScreen && !allowedScreens.includes("/") && defaultScreen !== "/") {
         router.push(defaultScreen);
       }
     }
-  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, router]);
+  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, allowedScreens, router]);
 
   useEffect(() => {
     // If consent is required, do NOT fetch domain data yet

@@ -83,6 +83,15 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () {
+                initQRLogin();
+            });
+        } else {
+            initQRLogin();
+        }
+    </script>
 </body>
 
 </html>

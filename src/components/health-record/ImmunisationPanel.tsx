@@ -39,6 +39,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
     );
     const [doseNumber, setDoseNumber] = useState("");
     const [batchNumber, setBatchNumber] = useState("");
+    const [manufacturer, setManufacturer] = useState("");
     const [expiryDate, setExpiryDate] = useState("");
     const [route, setRoute] = useState("");
     const [site, setSite] = useState("");
@@ -50,6 +51,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
         setVaccineId("");
         setDoseNumber("");
         setBatchNumber("");
+        setManufacturer("");
         setExpiryDate("");
         setRoute("");
         setSite("");
@@ -67,6 +69,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                 episode_id: episodeId ?? null,
                 dose_number: doseNumber ? Number(doseNumber) : null,
                 batch_number: batchNumber || null,
+                manufacturer: manufacturer || null,
                 expiry_date: expiryDate || null,
                 route: route || null,
                 site: site || null,
@@ -212,6 +215,18 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
 
                         <label className="text-sm">
                             <span className="mb-1 block font-medium text-slate-700">
+                                Manufacturer <span className="font-normal text-slate-400">(optional)</span>
+                            </span>
+                            <input
+                                value={manufacturer}
+                                onChange={(e) => setManufacturer(e.target.value)}
+                                placeholder="e.g. Serum Institute, Bharat Biotech"
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                            />
+                        </label>
+
+                        <label className="text-sm">
+                            <span className="mb-1 block font-medium text-slate-700">
                                 Expiry <span className="font-normal text-slate-400">(optional)</span>
                             </span>
                             <input
@@ -307,6 +322,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                                 <p className="mt-0.5 text-xs text-slate-500">
                                     {new Date(dose.administered_on).toLocaleDateString()}
                                     {dose.batch_number ? ` · batch ${dose.batch_number}` : ""}
+                                    {dose.manufacturer ? ` · ${dose.manufacturer}` : ""}
                                     {dose.site ? ` · ${dose.site}` : ""}
                                 </p>
                             </div>

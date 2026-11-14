@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CURA - Queue Display</title>
+    <title>CURA - Patient Queue Display</title>
     <script>
         if (window.location.pathname === '/tv-legacy') {
             window.location.replace('/tv-legacy/' + window.location.search);
@@ -14,188 +14,197 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body class="display-page theme-light">
+<body class="display-page theme-dark">
     <div id="display-container">
-        <!-- Header -->
+        <!-- Top Header -->
         <div id="header">
-            <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                    <td width="50%" align="left" valign="middle">
-                        <table cellpadding="0" cellspacing="0" border="0">
-                            <tr>
-                                <td valign="middle">
-                                    <div id="header-logo">
-                                        <img src="cura-logo.png" alt="CURA Logo"
-                                            onerror="this.onerror=null; this.src='login-logo.png'">
-                                    </div>
-                                </td>
-                                <td valign="middle" style="padding-left: 15px;">
-                                    <h1 id="title">Patient Queue Display</h1>
-                                    <p id="subtitle">Real-time waiting area status</p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                    <td width="30%" align="center" valign="middle">
-                        <div id="doctor-selector-container">
-                            <label for="doctor-selector">Select Doctor:</label>
-                            <select id="doctor-selector" onchange="handleDoctorChange()">
-                                <option value="">Loading doctors...</option>
-                            </select>
-                        </div>
-                    </td>
-                    <td width="15%" align="center" valign="middle">
-                        <div id="connection-status">
-                            <span id="status-dot" class="status-connecting"></span>
-                            <span id="status-text">Connecting...</span>
-                        </div>
-                    </td>
-                    <td width="20%" align="right" valign="middle">
-                        <span id="clock">00:00:00</span>
-                        <button id="theme-toggle-btn" onclick="toggleTheme(!isDarkModeActive())" title="Toggle Light/Dark Theme">🌙 Dark</button>
-                        <button id="logout-btn" onclick="handleLogout()" title="Logout">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-                                <line x1="12" y1="2" x2="12" y2="12"></line>
-                            </svg>
-                        </button>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- Main Content - Two Queue Panels -->
-        <div id="main-content">
-            <table cellpadding="10" cellspacing="0" border="0" width="100%" height="100%">
-                <tr>
-                    <!-- Optometrist / Examiner Queue Panel -->
-                    <td width="50%" valign="top" id="left-panel-cell">
-                        <div id="optometrist-panel" class="queue-panel">
-                            <div class="panel-header optometrist-header">
-                                <h2 id="left-panel-title">👁️ Eye Examination Queue</h2>
-                                <div class="stats-row">
-                                    <span class="stat-badge">Waiting: <span id="opt-waiting">0</span></span>
-                                    <span class="stat-badge">In Progress: <span id="opt-progress">0</span></span>
-                                </div>
-                            </div>
-                            <div id="optometrist-queue" class="queue-list">
-                                <p class="empty-message">No patients in queue</p>
-                            </div>
-                        </div>
-                    </td>
-
-                    <!-- Doctor Queue Panel -->
-                    <td width="50%" valign="top" id="right-panel-cell">
-                        <div id="doctor-panel" class="queue-panel">
-                            <div class="panel-header doctor-header">
-                                <h2 id="right-panel-title">🩺 Consultation Queue</h2>
-                                <div class="stats-row">
-                                    <span class="stat-badge">Waiting: <span id="doc-waiting">0</span></span>
-                                    <span class="stat-badge">In Progress: <span id="doc-progress">0</span></span>
-                                </div>
-                            </div>
-                            <div id="doctor-queue" class="queue-list">
-                                <p class="empty-message">No patients in queue</p>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- Footer -->
-        <div id="display-footer">
-            <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                    <td align="left" width="70%">
-                        <div class="settings-control">
-                            <label><input type="checkbox" id="toggle-header" onchange="toggleHeader(this.checked)"> Hide
-                                Header</label>
-                        </div>
-                        <div class="settings-control">
-                            <label><input type="checkbox" id="toggle-fullscreen" onchange="toggleFullscreen(this.checked)"> Full Screen</label>
-                        </div>
-                        <div class="settings-control">
-                            <label><input type="checkbox" id="toggle-theme" onchange="toggleTheme(this.checked)"> Dark Mode</label>
-                        </div>
-                        <span class="footer-brand"><strong>Technesian Cura</strong> <span class="separator">|</span>
-                            Revolutionizing Hospital Management <span class="separator">•</span> © <span
-                                class="current-year">2026</span> Technesian <span class="separator">•</span> <a
-                                href="https://www.technesian.com" target="_blank">www.technesian.com</a></span>
-                    </td>
-                    <td align="right" width="30%">
-                        <span>Last updated: <span id="last-update">--:--:--</span></span>
-                        &nbsp;&nbsp;
-                        <button id="test-panel-toggle-btn" onclick="toggleTestPanel()" class="test-panel-toggle-btn">
-                            🔊 Test Announcement
-                        </button>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- Test Announcement Panel (collapsible overlay above footer) -->
-        <div id="test-panel-body" style="display:none;">
-            <div class="test-panel-inner">
-                <div class="test-panel-header">
-                    <span>🔊 Announcement Test Tool</span>
-                    <button onclick="toggleTestPanel()" class="test-panel-close" title="Close">✕</button>
+            <div class="header-left">
+                <div class="brand-badge-box">
+                    <img src="cura-logo.png" alt="Logo" class="header-logo-img"
+                        onerror="this.onerror=null; this.src='login-logo.png'">
                 </div>
+                <div class="header-titles">
+                    <div class="clinic-header-row">
+                        <h1 id="clinic-name">Cura Health Clinic</h1>
+                        <span class="live-status-pill">
+                            <span class="live-pulse-dot"></span>
+                            <span class="live-text">LIVE</span>
+                        </span>
+                    </div>
+                    <p id="clinic-location">Outpatient Department (OPD)</p>
+                </div>
+            </div>
 
-                <div class="test-panel-content">
-                    <!-- Left: Input & Controls -->
-                    <div class="test-panel-left">
-                        <label class="test-label" for="test-announcement-text">Announcement Text (English)</label>
-                        <textarea
-                            id="test-announcement-text"
-                            class="test-textarea"
-                            rows="3"
-                            placeholder="Patient Test User, token number 100, please proceed to Room 1."
-                        >Patient Test User, token number 100, please proceed to Room 1.</textarea>
+            <div class="header-right">
+                <div class="header-stat-box">
+                    <span class="stat-icon">&#128101;</span>
+                    <span id="total-patients-text"><strong id="total-patients-count">0</strong> patients today</span>
+                </div>
+                <div class="header-datetime-box">
+                    <span id="clock-time">00:00:00</span>
+                    <span class="datetime-separator">•</span>
+                    <span id="clock-date">--</span>
+                </div>
+                <div class="header-actions">
+                    <button id="theme-toggle-btn" class="tv-btn tv-btn-subtle" onclick="toggleTheme(!isDarkModeActive())" title="Toggle Dark/Light Theme">
+                        ☀️ Light
+                    </button>
+                    <button id="setup-modal-btn" class="tv-btn tv-btn-accent" onclick="openSetupModal()" title="Configure Layout & Doctors">
+                        ⚙️ Setup
+                    </button>
+                    <button id="logout-btn" class="tv-btn tv-btn-icon" onclick="handleLogout()" title="Logout">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                            <line x1="12" y1="2" x2="12" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
 
-                        <div class="test-presets">
-                            <span class="test-presets-label">Quick presets:</span>
-                            <button class="test-preset-btn" onclick="document.getElementById('test-announcement-text').value='Patient Test User, token number 100, please proceed to Room 1.'">Room 1</button>
-                            <button class="test-preset-btn" onclick="document.getElementById('test-announcement-text').value='Patient Test User, your consultation is ready. Please proceed to Counter 2.'">Counter 2</button>
+        <!-- Main Dynamic Queue Container -->
+        <div id="main-content">
+            <div id="queue-view-container" class="queue-view-container layout-split">
+                <!-- Dynamically populated by app.js based on selected layout & doctors -->
+                <div class="loading-queues-placeholder">
+                    <div class="spinner"></div>
+                    <p>Loading patient queues...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Health Tip Marquee Ticker -->
+        <div id="ticker-banner">
+            <div class="ticker-badge">
+                <span class="ticker-icon">&#128161;</span>
+                <span class="ticker-label">HEALTH TIP</span>
+            </div>
+            <div class="ticker-track">
+                <div class="ticker-content" id="ticker-text">
+                    Regular health check-ups every 6 months &bull; Practice 20-20-20 rule for digital screens &bull; Stay hydrated throughout the day &bull; Practice deep breathing for stress relief &bull; Eat fresh fruits and vegetables daily &bull; Maintain good posture while sitting &bull; Consult your doctor before taking self-medication
+                </div>
+            </div>
+        </div>
+
+        <!-- Clean Minimal Footer (No marketing fluff) -->
+        <div id="display-footer">
+            <div class="footer-left">
+                <span class="footer-brand">
+                    <strong>Technesian Cura</strong> <span class="footer-dot">•</span> Live Waiting Area Display
+                </span>
+                <span id="footer-connection-badge" class="footer-conn-status">
+                    <span id="status-dot" class="status-connecting"></span>
+                    <span id="status-text">Connecting...</span>
+                </span>
+            </div>
+            <div class="footer-right">
+                <span class="footer-meta">Last updated: <span id="last-update">--:--:--</span></span>
+                <button class="footer-mini-btn" onclick="toggleFullscreen(!isFullscreenActive())" title="Toggle Fullscreen">
+                    ⛶ Fullscreen
+                </button>
+                <button class="footer-mini-btn" onclick="toggleTestPanel()" title="Test Announcement Audio">
+                    🔊 Test Audio
+                </button>
+            </div>
+        </div>
+
+        <!-- On-Screen TV Setup Modal (Allows layout & doctor change directly on TV) -->
+        <div id="setup-modal-overlay" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>⚙️ TV Queue Display Settings</h2>
+                    <button class="modal-close-btn" onclick="closeSetupModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Layout Mode Option -->
+                    <div class="modal-section">
+                        <label class="modal-label">Display Layout Mode</label>
+                        <div class="layout-options-grid">
+                            <label class="layout-radio-card" id="card-layout-split">
+                                <input type="radio" name="modal-layout" value="split" checked onchange="handleModalLayoutChange('split')">
+                                <div class="layout-card-content">
+                                    <div class="layout-card-icon">◫</div>
+                                    <div class="layout-card-title">Split View</div>
+                                    <div class="layout-card-desc">Examiner on Col 1 + 2 Doctors stacked on Col 2</div>
+                                </div>
+                            </label>
+                            <label class="layout-radio-card" id="card-layout-columns">
+                                <input type="radio" name="modal-layout" value="columns" onchange="handleModalLayoutChange('columns')">
+                                <div class="layout-card-content">
+                                    <div class="layout-card-icon">▥</div>
+                                    <div class="layout-card-title">Side-by-Side</div>
+                                    <div class="layout-card-desc">Equal columns (1, 2, 3, or 4 columns)</div>
+                                </div>
+                            </label>
                         </div>
-
-                        <div class="test-btn-group">
-                            <button onclick="testAnnouncement('en')" class="test-btn test-btn-en">
-                                ▶ English
-                            </button>
-                            <button onclick="testAnnouncement('hi')" class="test-btn test-btn-hi">
-                                ▶ Hindi
-                            </button>
-                            <button onclick="testBothLanguages()" class="test-btn test-btn-both">
-                                ▶ EN + HI (Queue)
-                            </button>
-                            <button onclick="testQueueSequencing()" class="test-btn test-btn-seq">
-                                ▶▶ Queue Stress Test
-                            </button>
-                        </div>
-
-                        <div id="test-announcement-status" class="test-status"></div>
                     </div>
 
-                    <!-- Right: Live Debug -->
+                    <!-- Examiner Queue Toggle -->
+                    <div class="modal-section">
+                        <label class="modal-checkbox-row">
+                            <input type="checkbox" id="modal-optometrist-toggle" checked>
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-text">
+                                <strong>Include Examiner / Optometrist Queue</strong>
+                                <span class="checkbox-desc">Shows preliminary eye checkup / triage queue in first column</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Doctors Selection -->
+                    <div class="modal-section">
+                        <label class="modal-label">Select Doctors to Display</label>
+                        <div id="modal-doctors-list" class="modal-doctors-list">
+                            <p class="empty-list-note">Loading doctors...</p>
+                        </div>
+                    </div>
+
+                    <!-- Display Options -->
+                    <div class="modal-section modal-options-row">
+                        <label class="modal-checkbox-inline">
+                            <input type="checkbox" id="modal-voice-toggle" checked>
+                            <span>Voice Announcements</span>
+                        </label>
+                        <label class="modal-checkbox-inline">
+                            <input type="checkbox" id="modal-ticker-toggle" checked>
+                            <span>Health Tips Ticker</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="tv-btn tv-btn-subtle" onclick="closeSetupModal()">Cancel</button>
+                    <button class="tv-btn tv-btn-accent" onclick="saveSetupModal()">Apply Setup</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Announcement Panel (Audio Debug) -->
+        <div id="test-panel-body" style="display: none;">
+            <div class="test-panel-inner">
+                <div class="test-panel-header">
+                    <span>🔊 Audio Announcement Tool</span>
+                    <button onclick="toggleTestPanel()" class="test-panel-close">✕</button>
+                </div>
+                <div class="test-panel-content">
+                    <div class="test-panel-left">
+                        <label class="test-label" for="test-announcement-text">Announcement Text</label>
+                        <textarea id="test-announcement-text" class="test-textarea" rows="2">Token T-012, Meera Devi, please proceed to Consultation Room 1.</textarea>
+                        <div class="test-btn-group">
+                            <button onclick="testAnnouncement('en')" class="test-btn test-btn-en">▶ English</button>
+                            <button onclick="testAnnouncement('hi')" class="test-btn test-btn-hi">▶ Hindi</button>
+                        </div>
+                        <div id="test-announcement-status" class="test-status"></div>
+                    </div>
                     <div class="test-panel-right">
-                        <div class="test-debug-label">Live Queue Debug</div>
-                        <div id="queue-debug-info" class="test-debug-box">
-                            Initializing...
-                        </div>
-                        <div class="test-debug-hint">
-                            ℹ️ Open browser console for detailed logs.<br>
-                            Set <code>CONFIG.ANNOUNCEMENT_DEBUG = false</code> to silence.
-                        </div>
+                        <div class="test-debug-label">Audio Debug Info</div>
+                        <div id="queue-debug-info" class="test-debug-box">Ready</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-
-    <!-- Notification Sound -->
+    <!-- Notification Chime -->
     <audio id="notification-sound" preload="auto">
         <source src="assets/notification.wav" type="audio/wav">
         <source src="assets/notification.mp3" type="audio/mpeg">
@@ -203,7 +212,6 @@
 
     <script src="app.js"></script>
     <script>
-        // Initialize display on page load
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initDisplay);
         } else {

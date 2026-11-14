@@ -1,5 +1,15 @@
 import { apiClient } from "./api";
 
+export interface TVDisplayConfig {
+    showExaminer: boolean;
+    doctorIds: string[];
+    layout: "split" | "columns" | "auto";
+    theme: "dark" | "light";
+    showHealthTips?: boolean;
+    privacyMode?: "full" | "initials" | "token_only";
+    voiceAlerts?: boolean;
+}
+
 export interface TVAuthorizeResponse {
     success: boolean;
     message: string;
@@ -11,6 +21,7 @@ export interface TVSessionInfo {
     hospital_name: string;
     expires_at: string;
     can_authorize: boolean;
+    last_config?: TVDisplayConfig | null;
 }
 
 export const tvAuthApi = {
@@ -21,10 +32,16 @@ export const tvAuthApi = {
         return response.data;
     },
 
-    async authorizeSession(sessionCode: string): Promise<TVAuthorizeResponse> {
+    async authorizeSession(
+        sessionCode: string,
+        displayConfig?: TVDisplayConfig
+    ): Promise<TVAuthorizeResponse> {
         const response = await apiClient.post<TVAuthorizeResponse>(
             "/auth/tv/authorize",
-            { session_code: sessionCode }
+            {
+                session_code: sessionCode,
+                display_config: displayConfig,
+            }
         );
         return response.data;
     },

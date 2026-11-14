@@ -184,6 +184,7 @@ export interface Immunisation {
     route: string | null;
     site: string | null;
     administered_by: string | null;
+    manufacturer?: string | null;
     notes: string | null;
 }
 
@@ -198,6 +199,7 @@ export interface RecordImmunisationRequest {
     route?: string | null;
     site?: string | null;
     administered_by?: string | null;
+    manufacturer?: string | null;
     notes?: string | null;
 }
 

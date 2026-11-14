@@ -1,15 +1,14 @@
 /**
  * TV Legacy Display - JavaScript Application
- * ES5 Compatible (no arrow functions, const/let, template literals, etc.)
- * Uses XMLHttpRequest instead of fetch
- * Uses SSE (Server-Sent Events) as primary transport with XHR polling as fallback
+ * ES5 Compatible (Strictly vanilla JS for old TVs: WebOS 3+, Tizen 3+, Android TV)
+ * Clean, flexible multi-queue engine with Split & Side-by-Side layouts
  */
 
 (function () {
     'use strict';
 
     // ================================================
-    // CONFIGURATION
+    // CONFIGURATION & DEFAULTS
     // ================================================
 
     function getDefaultApiUrl() {
@@ -23,13 +22,17 @@
     }
 
     var CONFIG = {
-        POLL_INTERVAL: 5000,  // Poll every 5 seconds
-        CLOCK_INTERVAL: 1000, // Update clock every second
-        DEFAULT_API_URL: getDefaultApiUrl(),  // Smart default based on environment
-        API_URL: null,        // Will be set after loading config
-        TTS_API_URL: null,    // Will be set after loading config (from TTS_API_URL env)
-        ANNOUNCEMENT_DEBUG: true  // Set to false to silence announcement debug logs
+        POLL_INTERVAL: 4000,
+        CLOCK_INTERVAL: 1000,
+        DEFAULT_API_URL: getDefaultApiUrl(),
+        API_URL: null,
+        TTS_API_URL: null,
+        ANNOUNCEMENT_DEBUG: true
     };
+
+    // Color accents for practitioner headers & tokens
+    var ACCENTS = ['accent-cyan', 'accent-emerald', 'accent-amber', 'accent-purple'];
+    var TOKEN_ACCENTS = ['accent-cyan-token', 'accent-emerald-token', 'accent-amber-token', 'accent-purple-token'];
 
     // ================================================
     // STORAGE HELPERS
@@ -51,41 +54,158 @@
         }
     }
 
-    function updateCurrentYear() {
-        var year = 2026;
-        var elements = document.getElementsByClassName('current-year');
-        for (var i = 0; i < elements.length; i++) {
-            elements[i].innerHTML = year;
+    function removeItem(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {
+            // ignore
         }
     }
 
-    window.toggleHeader = function (hide) {
-        var body = document.body;
-        var current = body.className || '';
-        if (hide) {
-            if (current.indexOf('header-hidden') === -1) {
-                body.className = (current + ' header-hidden').trim();
-            }
-        } else {
-            body.className = current.replace(/\bheader-hidden\b/g, '').replace(/\s+/g, ' ').trim();
-        }
-        setItem('tv_hide_header', hide ? 'true' : 'false');
-    };
+    function getApiUrl() {
+        return CONFIG.API_URL || getItem('tv_api_url') || CONFIG.DEFAULT_API_URL;
+    }
 
-    function applyHeaderPreference() {
-        var hide = getItem('tv_hide_header') === 'true';
-        var checkbox = document.getElementById('toggle-header');
-        if (checkbox) {
-            checkbox.checked = hide;
-        }
-        if (hide) {
-            var body = document.body;
-            var current = body.className || '';
-            if (current.indexOf('header-hidden') === -1) {
-                body.className = (current + ' header-hidden').trim();
+    function getAuthToken() {
+        return getItem('tv_auth_token');
+    }
+
+    function getTenantId() {
+        return getItem('tv_tenant_id');
+    }
+
+    function getHospitalId() {
+        return getItem('tv_hospital_id') || '';
+    }
+
+    function setHospitalId(id) {
+        setItem('tv_hospital_id', id);
+    }
+
+    // Display configuration loader & saver
+    function getDisplayConfig() {
+        var defaultCfg = {
+            showExaminer: true,
+            doctorIds: [],
+            layout: 'split', // 'split' | 'columns'
+            theme: 'dark',
+            showHealthTips: true,
+            voiceAlerts: true
+        };
+
+        var saved = getItem('tv_display_config');
+        if (saved) {
+            try {
+                var parsed = JSON.parse(saved);
+                if (parsed && typeof parsed === 'object') {
+                    if (typeof parsed.showExaminer === 'boolean') defaultCfg.showExaminer = parsed.showExaminer;
+                    if (Array.isArray(parsed.doctorIds)) defaultCfg.doctorIds = parsed.doctorIds;
+                    if (parsed.layout) defaultCfg.layout = parsed.layout;
+                    if (parsed.theme) defaultCfg.theme = parsed.theme;
+                    if (typeof parsed.showHealthTips === 'boolean') defaultCfg.showHealthTips = parsed.showHealthTips;
+                    if (typeof parsed.voiceAlerts === 'boolean') defaultCfg.voiceAlerts = parsed.voiceAlerts;
+                }
+            } catch (e) {
+                // ignore
             }
+        }
+        return defaultCfg;
+    }
+
+    function saveDisplayConfig(cfg) {
+        try {
+            setItem('tv_display_config', JSON.stringify(cfg));
+        } catch (e) {
+            // ignore
         }
     }
+
+    // ================================================
+    // AJAX (Vanilla XMLHttpRequest for old TVs)
+    // ================================================
+
+    function ajax(options) {
+        var xhr = new XMLHttpRequest();
+        var method = options.method || 'GET';
+        var url = options.url;
+        var async = options.async !== false;
+
+        xhr.open(method, url, async);
+
+        if (options.headers) {
+            for (var header in options.headers) {
+                if (options.headers.hasOwnProperty(header)) {
+                    xhr.setRequestHeader(header, options.headers[header]);
+                }
+            }
+        }
+
+        if (options.data && (method === 'POST' || method === 'PUT')) {
+            if (!options.headers || !options.headers['Content-Type']) {
+                xhr.setRequestHeader('Content-Type', 'application/json');
+            }
+        }
+
+        xhr.timeout = options.timeout || 10000;
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var response = xhr.responseText;
+                    try {
+                        response = JSON.parse(xhr.responseText);
+                    } catch (e) {
+                        // Keep text
+                    }
+                    if (options.success) options.success(response, xhr.status);
+                } else {
+                    var errorResponse = xhr.responseText;
+                    try {
+                        errorResponse = JSON.parse(xhr.responseText);
+                    } catch (e) {
+                        // Keep text
+                    }
+                    if (options.error) options.error(errorResponse, xhr.status);
+                }
+            }
+        };
+
+        xhr.ontimeout = function () {
+            if (options.error) options.error({ message: 'Request timeout' }, 0);
+        };
+
+        xhr.onerror = function () {
+            if (options.error) options.error({ message: 'Network error' }, 0);
+        };
+
+        var sendData = null;
+        if (options.data) {
+            sendData = typeof options.data === 'string' ? options.data : JSON.stringify(options.data);
+        }
+
+        xhr.send(sendData);
+        return xhr;
+    }
+
+    // Config endpoint
+    function loadConfig(callback) {
+        ajax({
+            method: 'GET',
+            url: '/config',
+            success: function (res) {
+                if (res.apiBaseUrl) CONFIG.API_URL = res.apiBaseUrl;
+                if (res.ttsApiUrl) CONFIG.TTS_API_URL = res.ttsApiUrl;
+                if (callback) callback();
+            },
+            error: function () {
+                if (callback) callback();
+            }
+        });
+    }
+
+    // ================================================
+    // THEME & DISPLAY PREFERENCES
+    // ================================================
 
     window.isDarkModeActive = function () {
         return (document.body.className || '').indexOf('theme-dark') !== -1;
@@ -107,369 +227,67 @@
         }
         body.className = current.replace(/\s+/g, ' ').trim();
 
-        // Update header button
         var themeBtn = document.getElementById('theme-toggle-btn');
         if (themeBtn) {
             themeBtn.innerHTML = isDark ? '☀️ Light' : '🌙 Dark';
-            themeBtn.setAttribute('title', isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme');
+            themeBtn.setAttribute('title', isDark ? 'Switch to Cura Light Theme' : 'Switch to Dark Clinic Theme');
         }
 
-        // Update footer checkbox
-        var themeCheckbox = document.getElementById('toggle-theme');
-        if (themeCheckbox) {
-            themeCheckbox.checked = !!isDark;
-        }
-
-        setItem('tv_theme', isDark ? 'dark' : 'light');
+        var cfg = getDisplayConfig();
+        cfg.theme = isDark ? 'dark' : 'light';
+        saveDisplayConfig(cfg);
     };
 
     function applyThemePreference() {
-        var theme = getItem('tv_theme');
-        var isDark = (theme === 'dark');
+        var cfg = getDisplayConfig();
+        var isDark = cfg.theme !== 'light';
         window.toggleTheme(isDark);
     }
 
+    window.isFullscreenActive = function () {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+    };
+
     window.toggleFullscreen = function (fullscreen) {
+        var docEl = document.documentElement;
         if (fullscreen) {
-            var docEl = document.documentElement;
-            if (docEl.requestFullscreen) {
-                docEl.requestFullscreen();
-            } else if (docEl.mozRequestFullScreen) { /* Firefox */
-                docEl.mozRequestFullScreen();
-            } else if (docEl.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
-                docEl.webkitRequestFullscreen();
-            } else if (docEl.msRequestFullscreen) { /* IE/Edge */
-                docEl.msRequestFullscreen();
-            }
+            if (docEl.requestFullscreen) docEl.requestFullscreen();
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+            else if (docEl.mozRequestFullScreen) docEl.mozRequestFullScreen();
+            else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
         } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.mozCancelFullScreen) { /* Firefox */
-                document.mozCancelFullScreen();
-            } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) { /* IE/Edge */
-                document.msExitFullscreen();
-            }
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
         }
     };
 
-    // Keep fullscreen checkbox in sync when user exits fullscreen with Escape key
-    function setupFullscreenListener() {
-        var events = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
-        for (var i = 0; i < events.length; i++) {
-            document.addEventListener(events[i], function () {
-                var checkbox = document.getElementById('toggle-fullscreen');
-                if (checkbox) {
-                    checkbox.checked = !!(
-                        document.fullscreenElement ||
-                        document.webkitFullscreenElement ||
-                        document.mozFullScreenElement ||
-                        document.msFullscreenElement
-                    );
-                }
-            });
-        }
-    }
-
-    setupFullscreenListener();
-
-    function removeItem(key) {
-        try {
-            localStorage.removeItem(key);
-        } catch (e) {
-            // localStorage not available
-        }
-    }
-
-    function getApiUrl() {
-        // Use runtime config if available, otherwise fall back to localStorage or default
-        var url = CONFIG.API_URL || getItem('tv_api_url') || CONFIG.DEFAULT_API_URL;
-        return url ? url.replace(/\/$/, '') : '';
-    }
-
-    function getAuthToken() {
-        return getItem('tv_auth_token');
-    }
-
-    function getTenantId() {
-        return getItem('tv_tenant_id');
-    }
-
-    function getSelectedDoctorId() {
-        return getItem('tv_selected_doctor');
-    }
-
-    function setSelectedDoctorId(id) {
-        setItem('tv_selected_doctor', id);
-    }
-
-    function getHospitalId() {
-        return getItem('tv_hospital_id');
-    }
-
-    function setHospitalId(id) {
-        setItem('tv_hospital_id', id);
-    }
-
     // ================================================
-    // AJAX HELPER (XMLHttpRequest for old browsers)
-    // ================================================
-
-    function ajax(options) {
-        var xhr;
-
-        // Create XMLHttpRequest (IE6+ compatible)
-        if (window.XMLHttpRequest) {
-            xhr = new XMLHttpRequest();
-        } else if (window.ActiveXObject) {
-            try {
-                xhr = new ActiveXObject('Msxml2.XMLHTTP');
-            } catch (e) {
-                try {
-                    xhr = new ActiveXObject('Microsoft.XMLHTTP');
-                } catch (e2) {
-                    options.error && options.error({ message: 'XMLHttpRequest not supported' });
-                    return;
-                }
-            }
-        }
-
-        var method = options.method || 'GET';
-        var url = options.url;
-        var data = options.data;
-        var headers = options.headers || {};
-
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-                var response;
-                try {
-                    response = JSON.parse(xhr.responseText);
-                } catch (e) {
-                    response = xhr.responseText;
-                }
-
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    options.success && options.success(response, xhr.status);
-                } else {
-                    options.error && options.error(response, xhr.status);
-                }
-            }
-        };
-
-        xhr.open(method, url, true);
-
-        // Set headers
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        for (var key in headers) {
-            if (headers.hasOwnProperty(key)) {
-                xhr.setRequestHeader(key, headers[key]);
-            }
-        }
-
-        // Send request
-        if (data) {
-            xhr.send(JSON.stringify(data));
-        } else {
-            xhr.send();
-        }
-    }
-
-    // ================================================
-    // CONFIG LOADING
-    // ================================================
-
-    function applyConfig(response) {
-        if (response && response.apiBaseUrl) {
-            CONFIG.API_URL = response.apiBaseUrl;
-            CONFIG.DEFAULT_API_URL = response.apiBaseUrl;
-        }
-        if (response && response.ttsApiUrl) {
-            CONFIG.TTS_API_URL = response.ttsApiUrl;
-            announcementDebug('CONFIG', 'TTS API URL loaded: ' + response.ttsApiUrl);
-        } else {
-            announcementDebug('CONFIG', 'TTS API URL not set — announcement audio disabled');
-        }
-    }
-
-    function loadConfig(callback) {
-        // Try relative 'config' endpoint first (works both on root / and subpaths like /tv-legacy/)
-        ajax({
-            method: 'GET',
-            url: 'config',
-            success: function (response) {
-                applyConfig(response);
-                callback && callback();
-            },
-            error: function () {
-                // Fallback to /tv-legacy/config if running behind reverse proxy
-                ajax({
-                    method: 'GET',
-                    url: '/tv-legacy/config',
-                    success: function (response) {
-                        applyConfig(response);
-                        callback && callback();
-                    },
-                    error: function () {
-                        // Fallback to root /config
-                        ajax({
-                            method: 'GET',
-                            url: '/config',
-                            success: function (response) {
-                                applyConfig(response);
-                                callback && callback();
-                            },
-                            error: function () {
-                                // If config endpoint fails, use defaults
-                                callback && callback();
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    }
-
-    function getTtsApiUrl() {
-        return CONFIG.TTS_API_URL || getItem('tv_tts_api_url') || '';
-    }
-
-    // ================================================
-    // LOGIN FUNCTIONS
-    // ================================================
-
-    window.handleLogin = function (event) {
-        event.preventDefault();
-
-        var hospitalId = document.getElementById('hospital_id').value;
-        setHospitalId(hospitalId); // Save hospital id for next time
-
-        var email = document.getElementById('email').value;
-        var password = document.getElementById('password').value;
-        var apiUrl = getApiUrl();
-
-        var errorEl = document.getElementById('error-message');
-        var btnText = document.getElementById('btn-text');
-        var btnLoading = document.getElementById('btn-loading');
-        var loginBtn = document.getElementById('login-btn');
-
-        // Show loading state
-        errorEl.style.display = 'none';
-        btnText.style.display = 'none';
-        btnLoading.style.display = 'inline';
-        loginBtn.disabled = true;
-
-        // Make login request
-        ajax({
-            method: 'POST',
-            url: apiUrl.replace(/\/$/, '') + '/auth/login',
-            data: {
-                email: email,
-                password: password,
-                hospital_id: hospitalId
-            },
-            success: function (response) {
-                // Store auth data
-                if (response.token && response.token.access_token) {
-                    setItem('tv_auth_token', response.token.access_token);
-                } else if (response.access_token) {
-                    setItem('tv_auth_token', response.access_token);
-                }
-                setItem('tv_user_id', response.user_id || '');
-                setItem('tv_tenant_id', response.tenant_id || '');
-                setItem('tv_role', response.role || '');
-
-                // Redirect to display page
-                window.location.href = 'display.html';
-            },
-            error: function (response, status) {
-                // Show error message
-                var message = 'Login failed. Please check your credentials.';
-                if (response && response.message) {
-                    message = response.message;
-                } else if (response && response.detail) {
-                    message = response.detail;
-                } else if (status === 0) {
-                    message = 'Cannot connect to server. Please check the backend URL.';
-                }
-
-                errorEl.innerHTML = message;
-                errorEl.style.display = 'block';
-
-                // Reset button state
-                btnText.style.display = 'inline';
-                btnLoading.style.display = 'none';
-                loginBtn.disabled = false;
-            }
-        });
-
-        return false;
-    };
-
-    window.handleLogout = function () {
-        disconnectSSE();
-        removeItem('tv_auth_token');
-        removeItem('tv_user_id');
-        removeItem('tv_tenant_id');
-        removeItem('tv_role');
-        removeItem('tv_selected_doctor');
-        window.location.href = 'index.html';
-    };
-
-    // ================================================
-    // QR LOGIN FUNCTIONS
+    // QR CODE LOGIN (index.html)
     // ================================================
 
     var qrPollInterval = null;
     var qrSessionCode = null;
     var qrExpiryTime = null;
     var qrTimerInterval = null;
+    var qrPollErrors = 0;
 
-    window.toggleLoginMethod = function () {
-        var form = document.getElementById('login-form');
-        var qrContainer = document.getElementById('qr-login-container');
-        var toggleLink = document.getElementById('toggle-method');
-        var hospitalIdInput = document.getElementById('hospital_id');
-        var hospitalId = hospitalIdInput ? hospitalIdInput.value.trim() : '';
-
-        if (form.style.display !== 'none') {
-            // Switch to QR
-            if (!hospitalId) {
-                alert('Please enter Hospital ID first');
-                hospitalIdInput.focus();
-                return;
-            }
-            setHospitalId(hospitalId); // Save hospital id
-
-            form.style.display = 'none';
-            qrContainer.style.display = 'block';
-            toggleLink.innerHTML = 'Switch to Password Login';
-            initQRLogin(hospitalId);
-        } else {
-            // Switch to Password
-            stopQRLogin();
-            qrContainer.style.display = 'none';
-            form.style.display = 'block';
-            toggleLink.innerHTML = 'Switch to QR Code Login';
-        }
-    };
-
-    function initQRLogin(hospitalId) {
+    window.initQRLogin = function (hospitalId) {
         var apiUrl = getApiUrl();
         var imgEl = document.getElementById('qr-code-img');
         var loadingEl = document.getElementById('qr-loading');
         var timerEl = document.getElementById('qr-timer');
 
-        // Reset state
+        if (!imgEl || !loadingEl) return;
+
         imgEl.style.display = 'none';
         loadingEl.style.display = 'block';
-        timerEl.innerHTML = '';
+        if (timerEl) timerEl.innerHTML = '';
         qrSessionCode = null;
 
         var requestData = {};
-        if (hospitalId) {
-            requestData.hospital_id = hospitalId;
-        }
+        if (hospitalId) requestData.hospital_id = hospitalId;
 
         ajax({
             method: 'POST',
@@ -479,33 +297,35 @@
                 qrSessionCode = response.session_code;
                 qrExpiryTime = new Date(response.expires_at).getTime();
 
-                // Set image source with fallback on error (prevents timeout on wrong host IP in response.qr_image_url)
                 var directQrUrl = apiUrl.replace(/\/$/, '') + '/auth/tv/qr/' + qrSessionCode;
                 var qrSrc = response.qr_image_url || directQrUrl;
+
                 imgEl.onload = function () {
                     loadingEl.style.display = 'none';
-                    imgEl.style.display = 'inline-block';
+                    imgEl.style.display = 'block';
                 };
                 imgEl.onerror = function () {
-                    // Fallback to direct QR image endpoint if absolute URL failed (e.g. mixed content / internal IP)
-                    if (imgEl.src !== directQrUrl && imgEl.src !== window.location.origin + directQrUrl) {
+                    if (imgEl.src !== directQrUrl) {
                         imgEl.src = directQrUrl;
                     } else {
-                        loadingEl.innerHTML = '<span style="color: red;">Failed to load QR image.<br>Please use password login or refresh.</span>';
-                        console.error('Failed to load QR image from: ' + qrSrc);
+                        loadingEl.innerHTML = '<span style="color:#ef4444;">Failed to load QR image.</span>';
                     }
                 };
                 imgEl.src = qrSrc;
 
-                // Start polling
                 startQRPolling();
                 startQRTimer();
             },
-            error: function (response) {
-                loadingEl.innerHTML = '<span style="color: red;">Error generating QR code.<br>Please try again or use password login.</span>';
-                console.error('QR Init Error:', response);
+            error: function (err) {
+                loadingEl.innerHTML = '<span style="color:#ef4444;">Error generating QR code.</span>';
             }
         });
+    };
+
+    function startQRPolling() {
+        qrPollErrors = 0;
+        if (qrPollInterval) clearInterval(qrPollInterval);
+        qrPollInterval = setInterval(checkSessionStatus, 3000);
     }
 
     function stopQRLogin() {
@@ -515,52 +335,40 @@
         qrTimerInterval = null;
     }
 
-    var qrPollErrors = 0;
-
-    function startQRPolling() {
-        qrPollErrors = 0;
-        if (qrPollInterval) clearInterval(qrPollInterval);
-        qrPollInterval = setInterval(function () {
-            checkSessionStatus();
-        }, 3000); // Poll every 3 seconds
-    }
-
     function checkSessionStatus() {
         if (!qrSessionCode) return;
-
         var apiUrl = getApiUrl();
 
         ajax({
             method: 'GET',
             url: apiUrl.replace(/\/$/, '') + '/auth/tv/session/' + qrSessionCode + '/status',
-            success: function (response) {
+            success: function (res) {
                 qrPollErrors = 0;
-                if (response.status === 'authenticated') {
-                    // Login successful
+                if (res.status === 'authenticated') {
                     stopQRLogin();
+                    if (res.access_token) {
+                        setItem('tv_auth_token', res.access_token);
+                        setItem('tv_user_id', res.user_id || '');
+                        setItem('tv_tenant_id', res.tenant_id || '');
+                        setItem('tv_role', res.role || '');
 
-                    if (response.access_token) {
-                        setItem('tv_auth_token', response.access_token);
-                        setItem('tv_user_id', response.user_id || '');
-                        setItem('tv_tenant_id', response.tenant_id || '');
-                        setItem('tv_role', response.role || '');
+                        // Save applied display config from mobile setup wizard
+                        if (res.display_config) {
+                            saveDisplayConfig(res.display_config);
+                        }
 
-                        // Redirect
                         window.location.href = 'display.html';
                     }
-                } else if (response.status === 'expired') {
-                    stopQRLogin();
-                    document.getElementById('qr-timer').innerHTML = '<span style="color: red">Session expired. Please refresh.</span>';
-                }
-            },
-            error: function (response, status) {
-                qrPollErrors++;
-                if (status === 404 || status === 403 || qrPollErrors >= 5) {
+                } else if (res.status === 'expired') {
                     stopQRLogin();
                     var timerEl = document.getElementById('qr-timer');
-                    if (timerEl) {
-                        timerEl.innerHTML = '<span style="color: red">Connection failed. Please refresh the page.</span>';
-                    }
+                    if (timerEl) timerEl.innerHTML = '<span style="color:#ef4444;">Session expired. Please refresh.</span>';
+                }
+            },
+            error: function () {
+                qrPollErrors++;
+                if (qrPollErrors >= 8) {
+                    stopQRLogin();
                 }
             }
         });
@@ -569,59 +377,143 @@
     function startQRTimer() {
         if (qrTimerInterval) clearInterval(qrTimerInterval);
 
-        function updateTimer() {
+        function update() {
             var now = new Date().getTime();
             var distance = qrExpiryTime - now;
+            var timerEl = document.getElementById('qr-timer');
+            if (!timerEl) return;
 
             if (distance < 0) {
                 clearInterval(qrTimerInterval);
-                document.getElementById('qr-timer').innerHTML = "EXPIRED";
+                timerEl.innerHTML = '<span style="color:#ef4444;">EXPIRED</span>';
                 return;
             }
 
             var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            document.getElementById('qr-timer').innerHTML = "Expires in " + minutes + "m " + seconds + "s";
+            seconds = seconds < 10 ? '0' + seconds : seconds;
+            timerEl.innerHTML = 'Expires in ' + minutes + ':' + seconds;
         }
 
-        updateTimer();
-        qrTimerInterval = setInterval(updateTimer, 1000);
+        update();
+        qrTimerInterval = setInterval(update, 1000);
     }
 
+    window.handleLogin = function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+
+        var hospitalIdEl = document.getElementById('hospital_id');
+        var hospitalId = hospitalIdEl ? hospitalIdEl.value.trim() : '';
+        if (hospitalId) setHospitalId(hospitalId);
+
+        var emailEl = document.getElementById('email');
+        var passEl = document.getElementById('password');
+        var email = emailEl ? emailEl.value.trim() : '';
+        var password = passEl ? passEl.value : '';
+        var apiUrl = getApiUrl();
+
+        var errorEl = document.getElementById('error-message');
+        var btnText = document.getElementById('btn-text');
+        var btnLoading = document.getElementById('btn-loading');
+        var loginBtn = document.getElementById('login-btn');
+
+        if (errorEl) errorEl.style.display = 'none';
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoading) btnLoading.style.display = 'inline';
+        if (loginBtn) loginBtn.disabled = true;
+
+        ajax({
+            method: 'POST',
+            url: apiUrl.replace(/\/$/, '') + '/auth/login',
+            data: {
+                email: email,
+                password: password,
+                hospital_id: hospitalId
+            },
+            success: function (response) {
+                if (response.token && response.token.access_token) {
+                    setItem('tv_auth_token', response.token.access_token);
+                } else if (response.access_token) {
+                    setItem('tv_auth_token', response.access_token);
+                }
+                setItem('tv_user_id', response.user_id || '');
+                setItem('tv_tenant_id', response.tenant_id || '');
+                setItem('tv_role', response.role || '');
+
+                window.location.href = 'display.html';
+            },
+            error: function (response) {
+                var message = 'Login failed. Please check credentials.';
+                if (response && response.message) message = response.message;
+                else if (response && response.detail) message = response.detail;
+
+                if (errorEl) {
+                    errorEl.innerHTML = message;
+                    errorEl.style.display = 'block';
+                }
+                if (btnText) btnText.style.display = 'inline';
+                if (btnLoading) btnLoading.style.display = 'none';
+                if (loginBtn) loginBtn.disabled = false;
+            }
+        });
+
+        return false;
+    };
+
+    window.toggleLoginMethod = function () {
+        var form = document.getElementById('login-form');
+        var qrContainer = document.getElementById('qr-login-container');
+        var toggleLink = document.getElementById('toggle-method');
+        if (!form || !qrContainer) return;
+
+        if (form.style.display !== 'none') {
+            form.style.display = 'none';
+            qrContainer.style.display = 'block';
+            if (toggleLink) toggleLink.innerHTML = 'Switch to Password Login';
+            window.initQRLogin();
+        } else {
+            stopQRLogin();
+            qrContainer.style.display = 'none';
+            form.style.display = 'block';
+            if (toggleLink) toggleLink.innerHTML = 'Switch to QR Code Login';
+        }
+    };
+
+    window.handleLogout = function () {
+        removeItem('tv_auth_token');
+        removeItem('tv_user_id');
+        removeItem('tv_role');
+        window.location.href = 'index.html';
+    };
+
     // ================================================
-    // DISPLAY PAGE FUNCTIONS
+    // DISPLAY PAGE CONTROLLER (display.html)
     // ================================================
 
-    var pollInterval = null;
+    var activeDoctors = []; // All available doctors from API
+    var configuredDoctors = []; // Doctors currently displayed
+    var queuePollInterval = null;
     var clockInterval = null;
-    var previousOptQueue = [];
-    var previousDocQueue = [];
+    var previousServingTokens = {}; // doctorId -> serving token string
+    var totalPatientsCount = 0;
 
     window.initDisplay = function () {
-        // Check if logged in
         if (!getAuthToken()) {
             window.location.href = 'index.html';
             return;
         }
 
-        // Load config first, then initialize display
         loadConfig(function () {
-            // Update year
-            updateCurrentYear();
-
-            // Apply header preference
-            applyHeaderPreference();
-
-            // Apply theme preference (default: light)
             applyThemePreference();
-
-            // Start clock
             updateClock();
             clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
 
-            // Load doctors
-            loadDoctors();
+            // Fetch hospital profile & doctors
+            loadHospitalInfo();
+            loadAllDoctors(function () {
+                setupConfiguredQueues();
+                startQueuePolling();
+            });
         });
     };
 
@@ -631,1290 +523,599 @@
         var minutes = now.getMinutes();
         var seconds = now.getSeconds();
 
-        // Pad with zeros
-        hours = hours < 10 ? '0' + hours : hours;
+        var ampm = hours >= 12 ? 'PM' : 'AM';
+        var h12 = hours % 12;
+        h12 = h12 ? h12 : 12; // 0 becomes 12
+        h12 = h12 < 10 ? '0' + h12 : h12;
         minutes = minutes < 10 ? '0' + minutes : minutes;
         seconds = seconds < 10 ? '0' + seconds : seconds;
 
-        var clockEl = document.getElementById('clock');
-        if (clockEl) {
-            clockEl.innerHTML = hours + ':' + minutes + ':' + seconds;
+        var clockTimeEl = document.getElementById('clock-time');
+        if (clockTimeEl) {
+            clockTimeEl.innerHTML = h12 + ':' + minutes + ':' + seconds + ' ' + ampm;
+        }
+
+        var clockDateEl = document.getElementById('clock-date');
+        if (clockDateEl) {
+            var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            clockDateEl.innerHTML = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
         }
     }
 
-    function updateLastUpdateTime() {
-        var now = new Date();
-        var hours = now.getHours();
-        var minutes = now.getMinutes();
-        var seconds = now.getSeconds();
-
-        hours = hours < 10 ? '0' + hours : hours;
-        minutes = minutes < 10 ? '0' + minutes : minutes;
-        seconds = seconds < 10 ? '0' + seconds : seconds;
-
-        var el = document.getElementById('last-update');
-        if (el) {
-            el.innerHTML = hours + ':' + minutes + ':' + seconds;
-        }
-    }
-
-    function setConnectionStatus(status, mode) {
+    function setConnectionStatus(status) {
         var dot = document.getElementById('status-dot');
         var text = document.getElementById('status-text');
-
         if (!dot || !text) return;
 
         dot.className = '';
-
         if (status === 'connected') {
-            if (mode === 'polling') {
-                dot.className = 'status-polling';
-                text.innerHTML = 'Live (Polling)';
-            } else {
-                dot.className = 'status-connected';
-                text.innerHTML = 'Live (SSE Stream)';
-            }
+            dot.className = 'status-connected';
+            text.innerHTML = 'Live';
         } else if (status === 'connecting') {
             dot.className = 'status-connecting';
             text.innerHTML = 'Connecting...';
         } else {
             dot.className = 'status-error';
-            text.innerHTML = 'Connection Error';
+            text.innerHTML = 'Offline';
         }
     }
 
-    var currentDoctorType = 'eye'; // 'eye' or 'general'
-    var currentHasExaminer = false; // for general flow: left panel visibility
-
-    function isEyeHospitalDoctor(specialization) {
-        var spec = (specialization || '').toLowerCase();
-        return spec.indexOf('ophth') !== -1 || spec.indexOf('optom') !== -1;
-    }
-
-    function checkExaminerMapped(doctorId, callback) {
+    function loadHospitalInfo() {
         var apiUrl = getApiUrl();
         var token = getAuthToken();
+
         ajax({
             method: 'GET',
-            url: apiUrl + '/opd/examiner-mappings/doctor/' + doctorId,
-            headers: {
-                'Authorization': 'Bearer ' + token
-            },
-            success: function (response) {
-                var items = parseQueueResponse(response);
-                var hasMapped = Array.isArray(items) && items.length > 0;
-                callback(hasMapped);
+            url: apiUrl + '/tenants/current',
+            headers: { 'Authorization': 'Bearer ' + token },
+            success: function (res) {
+                var name = res.name || res.hospital_name;
+                var address = res.address || res.location || 'Outpatient Department (OPD)';
+                var clinicNameEl = document.getElementById('clinic-name');
+                var clinicLocEl = document.getElementById('clinic-location');
+                if (name && clinicNameEl) clinicNameEl.innerHTML = name;
+                if (address && clinicLocEl) clinicLocEl.innerHTML = address;
             },
             error: function () {
-                callback(false);
+                // Keep default clinic title
             }
         });
     }
 
-    function setLeftPanelVisible(visible) {
-        var cell = document.getElementById('left-panel-cell');
-        var rightCell = document.getElementById('right-panel-cell');
-        if (!cell) return;
-        if (visible) {
-            cell.style.display = '';
-            if (rightCell) rightCell.style.width = '50%';
-        } else {
-            cell.style.display = 'none';
-            if (rightCell) rightCell.style.width = '100%';
-        }
-    }
-
-    function updatePanelLabels() {
-        var leftTitle = document.getElementById('left-panel-title');
-        var rightTitle = document.getElementById('right-panel-title');
-        if (currentDoctorType === 'eye') {
-            if (leftTitle) leftTitle.innerHTML = '&#128065;&#65039; Eye Examination Queue';
-        } else {
-            if (leftTitle) leftTitle.innerHTML = '&#128300; Examination Queue';
-        }
-        if (rightTitle) rightTitle.innerHTML = '&#129314; Consultation Queue';
-
-        if (currentDoctorType === 'general') {
-            if (document.body.className.indexOf('general-flow') === -1) {
-                document.body.className = (document.body.className + ' general-flow').replace(/\s+/g, ' ').trim();
-            }
-        } else {
-            document.body.className = document.body.className.replace('general-flow', '').replace(/\s+/g, ' ').trim();
-        }
-    }
-
-    function getQueueUrls(doctorId) {
-        var apiUrl = getApiUrl();
-        if (currentDoctorType === 'eye') {
-            return {
-                left: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned',
-                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed'
-            };
-        } else {
-            return {
-                left: apiUrl + '/opd/general/examiner-queue/' + doctorId + '/stream?status=awaiting_examiner,examiner_assigned,examination_in_progress',
-                right: apiUrl + '/opd/general/group-queue/' + doctorId + '/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress'
-            };
-        }
-    }
-
-    function getPollingUrls(doctorId) {
-        var apiUrl = getApiUrl();
-        if (currentDoctorType === 'eye') {
-            return {
-                left: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '?status=awaiting_optometrist,optometrist_assigned',
-                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed'
-            };
-        } else {
-            return {
-                left: apiUrl + '/opd/general/examiner-queue/' + doctorId + '?status=awaiting_examiner,examiner_assigned,examination_in_progress',
-                right: apiUrl + '/opd/general/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress'
-            };
-        }
-    }
-
-    function loadDoctors() {
+    function loadAllDoctors(callback) {
         var apiUrl = getApiUrl();
         var token = getAuthToken();
 
         ajax({
             method: 'GET',
             url: apiUrl + '/doctors',
-            headers: {
-                'Authorization': 'Bearer ' + token
+            headers: { 'Authorization': 'Bearer ' + token },
+            success: function (res) {
+                activeDoctors = res.data || res || [];
+                if (callback) callback();
             },
-            success: function (response) {
-                var doctors = response.data || response || [];
-                var selector = document.getElementById('doctor-selector');
-
-                if (!selector) return;
-
-                // Clear existing options
-                selector.innerHTML = '';
-
-                if (doctors.length === 0) {
-                    var opt = document.createElement('option');
-                    opt.value = '';
-                    opt.innerHTML = 'No doctors available';
-                    selector.appendChild(opt);
-                    return;
-                }
-
-                // Add doctor options
-                for (var i = 0; i < doctors.length; i++) {
-                    var doc = doctors[i];
-                    var opt = document.createElement('option');
-                    opt.value = doc.id;
-                    opt.setAttribute('data-specialization', doc.specialization || '');
-                    opt.innerHTML = doc.user_name || doc.name || ('Dr. ' + (doc.specialization || 'Unknown'));
-                    selector.appendChild(opt);
-                }
-
-                // Select previously selected doctor or first one
-                var savedDoctorId = getSelectedDoctorId();
-                if (savedDoctorId) {
-                    selector.value = savedDoctorId;
-                } else if (doctors.length > 0) {
-                    selector.value = doctors[0].id;
-                    setSelectedDoctorId(doctors[0].id);
-                }
-
-                var selectedOpt = selector.options[selector.selectedIndex];
-                var spec = selectedOpt ? selectedOpt.getAttribute('data-specialization') : '';
-                currentDoctorType = isEyeHospitalDoctor(spec) ? 'eye' : 'general';
-
-                if (currentDoctorType === 'general') {
-                    checkExaminerMapped(selector.value, function (hasMapped) {
-                        currentHasExaminer = hasMapped;
-                        updatePanelLabels();
-                        setLeftPanelVisible(hasMapped);
-                        connectQueues();
-                    });
-                } else {
-                    currentHasExaminer = false;
-                    updatePanelLabels();
-                    setLeftPanelVisible(true);
-                    connectQueues();
-                }
-            },
-            error: function (response, status) {
-                var selector = document.getElementById('doctor-selector');
-                if (selector) {
-                    selector.innerHTML = '<option value="">Error loading doctors</option>';
-                }
-                setConnectionStatus('error');
-
-                // Handle 401 - redirect to login
+            error: function (err, status) {
                 if (status === 401) {
                     handleLogout();
+                    return;
                 }
+                activeDoctors = [];
+                if (callback) callback();
             }
         });
     }
 
-    window.handleDoctorChange = function () {
-        var selector = document.getElementById('doctor-selector');
-        if (selector && selector.value) {
-            var selectedOpt = selector.options[selector.selectedIndex];
-            var spec = selectedOpt ? selectedOpt.getAttribute('data-specialization') : '';
-            currentDoctorType = isEyeHospitalDoctor(spec) ? 'eye' : 'general';
-
-            setSelectedDoctorId(selector.value);
-            // Clear previous queues
-            previousOptQueue = [];
-            previousDocQueue = [];
-            // Reset announcement state for new doctor context
-            resetAnnouncementState();
-
-            if (currentDoctorType === 'general') {
-                checkExaminerMapped(selector.value, function (hasMapped) {
-                    currentHasExaminer = hasMapped;
-                    updatePanelLabels();
-                    setLeftPanelVisible(hasMapped);
-                    connectQueues();
-                });
-            } else {
-                currentHasExaminer = false;
-                updatePanelLabels();
-                setLeftPanelVisible(true);
-                connectQueues();
-            }
-        }
-    };
-
     // ================================================
-    // SSE STREAM & POLLING MANAGEMENT
+    // DYNAMIC LAYOUT & QUEUE BUILDER
     // ================================================
 
-    var sseOptometristController = null;
-    var sseDoctorController = null;
-    var isSseActive = false;
+    function setupConfiguredQueues() {
+        var cfg = getDisplayConfig();
+        var container = document.getElementById('queue-view-container');
+        if (!container) return;
 
-    function isSSESupported() {
-        return (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined' && typeof AbortController !== 'undefined');
-    }
-
-    function isHeartbeatMessage(data) {
-        if (!data || data === null || data === undefined) return true;
-        if (data.type === 'heartbeat' || data.type === 'ping' || data.type === 'keepalive') return true;
-        if (typeof data === 'object' && !Array.isArray(data)) {
-            if (Object.keys(data).length === 0) return true;
-            if (data.timestamp && !data.patient_id && !data.visit_id && !data.id && !data.queue && !data.items && !data.data && !data.entries && !data.slots) return true;
-        }
-        return false;
-    }
-
-    function disconnectSSE() {
-        if (sseOptometristController) {
-            try {
-                if (sseOptometristController.abort) sseOptometristController.abort();
-                if (sseOptometristController.close) sseOptometristController.close();
-            } catch (e) {}
-            sseOptometristController = null;
-        }
-        if (sseDoctorController) {
-            try {
-                if (sseDoctorController.abort) sseDoctorController.abort();
-                if (sseDoctorController.close) sseDoctorController.close();
-            } catch (e) {}
-            sseDoctorController = null;
-        }
-        isSseActive = false;
-    }
-
-    function connectStream(url, onMessage, onError) {
-        var token = getAuthToken();
-        if (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined' && typeof AbortController !== 'undefined') {
-            var controller = new AbortController();
-            fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'text/event-stream',
-                    'Authorization': 'Bearer ' + token
-                },
-                signal: controller.signal
-            }).then(function (response) {
-                if (!response.ok) {
-                    onError && onError(new Error('HTTP error ' + response.status));
-                    return;
-                }
-                if (!response.body) {
-                    onError && onError(new Error('ReadableStream not supported'));
-                    return;
-                }
-                var reader = response.body.getReader();
-                var decoder = new TextDecoder();
-                var buffer = '';
-
-                function readChunk() {
-                    reader.read().then(function (result) {
-                        if (result.done) {
-                            return;
-                        }
-                        buffer += decoder.decode(result.value, { stream: true });
-                        var parts = buffer.split('\n\n');
-                        buffer = parts.pop() || '';
-
-                        for (var i = 0; i < parts.length; i++) {
-                            var part = parts[i];
-                            var lines = part.split('\n');
-                            var eventName = 'message';
-                            var currentData = [];
-                            for (var j = 0; j < lines.length; j++) {
-                                var line = lines[j];
-                                if (line.indexOf('event: ') === 0) {
-                                    eventName = line.slice(7).trim();
-                                } else if (line.indexOf('data: ') === 0) {
-                                    currentData.push(line.slice(6));
-                                }
-                            }
-                            if (eventName === 'heartbeat' || eventName === 'ping' || eventName === 'keepalive') {
-                                continue;
-                            }
-                            if (currentData.length > 0) {
-                                var dataStr = currentData.join('\n');
-                                try {
-                                    var parsed = JSON.parse(dataStr);
-                                    if (!isHeartbeatMessage(parsed)) {
-                                        onMessage(parsed);
-                                    }
-                                } catch (e) {
-                                    if (!isHeartbeatMessage(dataStr)) {
-                                        onMessage(dataStr);
-                                    }
-                                }
-                            }
-                        }
-                        readChunk();
-                    }).catch(function (err) {
-                        if (err.name !== 'AbortError') {
-                            onError && onError(err);
-                        }
-                    });
-                }
-
-                readChunk();
-            }).catch(function (err) {
-                if (err.name !== 'AbortError') {
-                    onError && onError(err);
-                }
-            });
-            return controller;
-        } else {
-            onError && onError(new Error('SSE not supported'));
-            return null;
-        }
-    }
-
-    function connectQueues() {
-        var doctorId = getSelectedDoctorId();
-        if (!doctorId) return;
-
-        disconnectSSE();
-
-        if (isSSESupported()) {
-            if (queuePollTimeout) {
-                clearTimeout(queuePollTimeout);
-                queuePollTimeout = null;
-            }
-            if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-            }
-
-            setConnectionStatus('connecting');
-
-            var urls = getQueueUrls(doctorId);
-
-            var sseFailed = false;
-            function handleStreamError(err) {
-                announcementDebug('SSE', 'Stream connection error/closed: ' + (err ? err.message : 'Unknown error'));
-                if (!sseFailed && isSseActive) {
-                    sseFailed = true;
-                    disconnectSSE();
-                    announcementDebug('SSE', 'Falling back to polling mode');
-                    startPolling();
-                }
-            }
-
-            isSseActive = true;
-
-            // Only connect left queue if visible (eye hospital or general with mapped examiner)
-            if (currentDoctorType === 'eye' || currentHasExaminer) {
-                sseOptometristController = connectStream(urls.left, function (data) {
-                    if (isHeartbeatMessage(data)) return;
-                    var patients = parseQueueResponse(data);
-                    renderOptometristQueue(patients);
-                    updateOptometristStats(patients);
-                    checkForNewAssignments(patients, previousOptQueue, 'optometrist');
-                    previousOptQueue = patients;
-                    setConnectionStatus('connected', 'sse');
-                    updateLastUpdateTime();
-                }, handleStreamError);
-            }
-
-            sseDoctorController = connectStream(urls.right, function (data) {
-                if (isHeartbeatMessage(data)) return;
-                var patients = parseQueueResponse(data);
-                renderDoctorQueue(patients);
-                updateDoctorStats(patients);
-                checkForNewAssignments(patients, previousDocQueue, 'doctor');
-                previousDocQueue = patients;
-                setConnectionStatus('connected', 'sse');
-                updateLastUpdateTime();
-            }, handleStreamError);
-        } else {
-            announcementDebug('SSE', 'SSE not supported by browser — using polling mode');
-            startPolling();
-        }
-    }
-
-    var queuePollErrors = 0;
-    var queuePollTimeout = null;
-
-    function startPolling() {
-        queuePollErrors = 0;
-        if (queuePollTimeout) {
-            clearTimeout(queuePollTimeout);
-            queuePollTimeout = null;
-        }
-        // Initial fetch
-        fetchQueues();
-    }
-
-    function scheduleNextQueuePoll(delay) {
-        if (queuePollTimeout) {
-            clearTimeout(queuePollTimeout);
-        }
-        queuePollTimeout = setTimeout(fetchQueues, delay);
-    }
-
-    function fetchQueues() {
-        var doctorId = getSelectedDoctorId();
-        if (!doctorId) return;
-
-        var token = getAuthToken();
-        var pollUrls = getPollingUrls(doctorId);
-
-        setConnectionStatus('connecting');
-
-        var baseInterval = CONFIG.POLL_INTERVAL || 5000;
-
-        // Fetch left queue (optometrist / examiner) only if visible
-        if (currentDoctorType === 'eye' || currentHasExaminer) {
-            ajax({
-                method: 'GET',
-                url: pollUrls.left,
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                },
-                success: function (response) {
-                    queuePollErrors = 0;
-                    var patients = parseQueueResponse(response);
-                    renderOptometristQueue(patients);
-                    updateOptometristStats(patients);
-                    checkForNewAssignments(patients, previousOptQueue, 'optometrist');
-                    previousOptQueue = patients;
-                    setConnectionStatus('connected', 'polling');
-                    updateLastUpdateTime();
-                    scheduleNextQueuePoll(baseInterval);
-                },
-                error: function (response, status) {
-                    queuePollErrors++;
-                    if (status === 401) {
-                        handleLogout();
-                        return;
+        // Determine configured doctors
+        configuredDoctors = [];
+        if (cfg.doctorIds && cfg.doctorIds.length > 0) {
+            for (var i = 0; i < cfg.doctorIds.length; i++) {
+                var dId = cfg.doctorIds[i];
+                for (var j = 0; j < activeDoctors.length; j++) {
+                    if (activeDoctors[j].id === dId) {
+                        configuredDoctors.push(activeDoctors[j]);
+                        break;
                     }
-                    setConnectionStatus('error');
-                    // Exponential backoff on error: 5s -> 10s -> 20s -> 40s -> max 60s
-                    var backoffDelay = Math.min(baseInterval * Math.pow(2, Math.min(queuePollErrors, 4)), 60000);
-                    scheduleNextQueuePoll(backoffDelay);
-                }
-            });
-        }
-
-        // Fetch doctor queue
-        ajax({
-            method: 'GET',
-            url: pollUrls.right,
-            headers: {
-                'Authorization': 'Bearer ' + token
-            },
-            success: function (response) {
-                queuePollErrors = 0;
-                var patients = parseQueueResponse(response);
-                renderDoctorQueue(patients);
-                updateDoctorStats(patients);
-                checkForNewAssignments(patients, previousDocQueue, 'doctor');
-                previousDocQueue = patients;
-                setConnectionStatus('connected', 'polling');
-                updateLastUpdateTime();
-                if (!(currentDoctorType === 'eye' || currentHasExaminer)) {
-                    scheduleNextQueuePoll(baseInterval);
-                }
-            },
-            error: function (response, status) {
-                queuePollErrors++;
-                if (status === 401) {
-                    handleLogout();
-                    return;
-                }
-                setConnectionStatus('error');
-                if (!(currentDoctorType === 'eye' || currentHasExaminer)) {
-                    var backoffDelay = Math.min(baseInterval * Math.pow(2, Math.min(queuePollErrors, 4)), 60000);
-                    scheduleNextQueuePoll(backoffDelay);
                 }
             }
-        });
-    }
-
-    function parseQueueResponse(response) {
-        if (!response) return [];
-        if (Array.isArray(response)) return response;
-        if (response.items && Array.isArray(response.items)) return response.items;
-        if (response.data && Array.isArray(response.data)) return response.data;
-        if (response.queue && Array.isArray(response.queue)) return response.queue;
-        if (response.slots && Array.isArray(response.slots)) return response.slots;
-        if (response.entries && Array.isArray(response.entries)) return response.entries;
-        return [];
-    }
-
-    /**
-     * Resolve the best available unique identifier from a patient record.
-     *
-     * The API returns the queue entry as `id` (not `visit_id`).
-     * We fall back through several fields to guarantee a non-undefined key:
-     *   id  →  visit_id  →  appointment_id  →  patient_id + token_number
-     *
-     * Returns null only if the record is entirely devoid of identifiers
-     * (which should never happen in a real response).
-     *
-     * @param {Object} patient - Raw patient object from the API
-     * @returns {string|null}
-     */
-    function getPatientId(patient) {
-        if (!patient) return null;
-        if (patient.id)             return String(patient.id);
-        if (patient.visit_id)       return String(patient.visit_id);
-        if (patient.appointment_id) return String(patient.appointment_id);
-        // Last-resort composite key — unique enough for dedup purposes
-        if (patient.patient_id && (patient.token_number || patient.token)) {
-            return String(patient.patient_id) + '_' + String(patient.token_number || patient.token);
         }
-        return null;
-    }
 
-    function checkForNewAssignments(current, previous, queueType) {
-        announcementDebug('POLL', 'Checking ' + queueType + ' queue — ' + current.length + ' patient(s)');
-
-        // Check for newly assigned patients
-        for (var i = 0; i < current.length; i++) {
-            var curr = current[i];
-            var isAssigned = (queueType === 'optometrist' && (curr.status === 'optometrist_assigned' || curr.status === 'examiner_assigned')) ||
-                (queueType === 'doctor' && curr.status === 'doctor_assigned');
-
-            if (!isAssigned) continue;
-
-            // Resolve a reliable identifier for this patient
-            var currId = getPatientId(curr);
-
-            if (!currId) {
-                // Cannot reliably identify this patient — skip to avoid creating broken dedup keys
-                announcementDebug('POLL', 'WARNING: Could not resolve ID for patient "' +
-                    (curr.patient_name || 'Unknown') + '" — skipping announcement');
-                continue;
-            }
-
-            // Check if this patient was already in the assigned status in the previous poll
-            var wasAssigned = false;
-            for (var j = 0; j < previous.length; j++) {
-                var prev = previous[j];
-                var prevId = getPatientId(prev);
-                if (prevId === currId && prev.status === curr.status) {
-                    wasAssigned = true;
-                    break;
-                }
-            }
-
-            if (!wasAssigned) {
-                announcementDebug('POLL', 'New assignment detected: ' + curr.patient_name +
-                    ' [id=' + currId + '] (token ' + (curr.token_number || curr.token) +
-                    ') status=' + curr.status);
-
-                // Play notification chime immediately
-                playNotificationSound();
-
-                // Build announcement text
-                var cabin = queueType === 'optometrist'
-                    ? (curr.optometrist_cabin || curr.examiner_cabin || null)
-                    : (curr.doctor_cabin || null);
-
-                var announcementText = generateAnnouncementText(
-                    curr.patient_name,
-                    curr.token_number || curr.token,
-                    cabin,
-                    queueType
-                );
-
-                // Enqueue with the resolved, non-undefined ID
-                enqueueAnnouncement(currId, curr.status, announcementText);
-                break; // Only one new assignment detection per poll cycle
-            }
+        // Fallback: If no doctors matched or none selected, pick up to 2 active doctors
+        if (configuredDoctors.length === 0 && activeDoctors.length > 0) {
+            configuredDoctors = activeDoctors.slice(0, 2);
         }
-    }
 
-    function playNotificationSound() {
-        var audio = document.getElementById('notification-sound');
-        if (audio) {
-            try {
-                audio.currentTime = 0;
-                audio.play();
-            } catch (e) {
-                // Sound not supported
-            }
-        }
-    }
-
-    function renderOptometristQueue(patients) {
-        var container = document.getElementById('optometrist-queue');
-        if (!container) return;
-
-        if (patients.length === 0) {
-            container.innerHTML = '<p class="empty-message">No patients in queue</p>';
-            return;
-        }
+        // Decide effective layout
+        var isSplit = cfg.layout === 'split' && cfg.showExaminer && configuredDoctors.length >= 2;
+        container.className = 'queue-view-container ' + (isSplit ? 'layout-split' : 'layout-columns-' + (configuredDoctors.length + (cfg.showExaminer ? 1 : 0)));
 
         var html = '';
-        for (var i = 0; i < patients.length; i++) {
-            html += renderPatientCard(patients[i], 'optometrist');
-        }
-        container.innerHTML = html;
-    }
 
-    function isTerminalStatus(status) {
-        return status === 'consultation_completed' ||
-            status === 'completed' ||
-            status === 'no_show' ||
-            status === 'cancelled' ||
-            status === 'checked_in' ||
-            status === 'scheduled';
-    }
+        if (isSplit) {
+            // Split layout: Left col = Examiner (Full Height), Right col = 2 Stacked Doctors
+            html += '<div class="split-col-left">';
+            html += buildQueuePanelHtml('examiner', 'EXAMINATION / OPTOMETRY', 'Eye Examination & Triage', 'Room 1', ACCENTS[2], TOKEN_ACCENTS[2], false);
+            html += '</div>';
 
-    function renderOptometristQueue(patients) {
-        var container = document.getElementById('optometrist-queue');
-        if (!container) return;
-
-        var html = '';
-        var activeCount = 0;
-        for (var i = 0; i < patients.length; i++) {
-            if (isTerminalStatus(patients[i].status)) continue;
-            var cardHtml = renderPatientCard(patients[i], 'optometrist');
-            if (cardHtml) {
-                html += cardHtml;
-                activeCount++;
+            html += '<div class="split-col-right">';
+            for (var k = 0; k < 2; k++) {
+                var doc = configuredDoctors[k];
+                var docName = doc.user_name || doc.name || 'Doctor ' + (k + 1);
+                var docRole = (doc.specialization || 'OPD Consultant') + ' - OPD';
+                var cabin = 'Cabin ' + (k + 1);
+                var accentIdx = k % ACCENTS.length;
+                html += buildQueuePanelHtml('doctor-' + doc.id, docName, docRole, cabin, ACCENTS[accentIdx], TOKEN_ACCENTS[accentIdx], true);
             }
-        }
-
-        if (activeCount === 0) {
-            container.innerHTML = '<p class="empty-message">No patients in queue</p>';
-            return;
-        }
-
-        container.innerHTML = html;
-    }
-
-    function renderDoctorQueue(patients) {
-        var container = document.getElementById('doctor-queue');
-        if (!container) return;
-
-        var html = '';
-        var activeCount = 0;
-        for (var i = 0; i < patients.length; i++) {
-            if (isTerminalStatus(patients[i].status)) continue;
-            var cardHtml = renderPatientCard(patients[i], 'doctor');
-            if (cardHtml) {
-                html += cardHtml;
-                activeCount++;
-            }
-        }
-
-        if (activeCount === 0) {
-            container.innerHTML = '<p class="empty-message">No patients in queue</p>';
-            return;
-        }
-
-        container.innerHTML = html;
-    }
-
-    function renderPatientCard(patient, queueType) {
-        if (!patient || isTerminalStatus(patient.status)) {
-            return '';
-        }
-
-        var cardClass = 'patient-card';
-        var statusClass = 'status-waiting';
-        var statusText = 'Waiting';
-        var cabin = '';
-
-        if (queueType === 'optometrist') {
-            if (patient.status === 'optometrist_assigned' || patient.status === 'examiner_assigned') {
-                cardClass += ' status-assigned';
-                statusClass = 'status-active';
-                statusText = 'Called';
-                cabin = patient.optometrist_cabin || patient.examiner_cabin || '';
-            } else if (patient.status === 'optometrist_investigation_in_progress' || patient.status === 'examination_in_progress') {
-                cardClass += ' status-in-progress';
-                statusClass = 'status-active';
-                statusText = 'In Progress';
-                cabin = patient.optometrist_cabin || patient.examiner_cabin || '';
-            }
+            html += '</div>';
         } else {
-            if (patient.status === 'doctor_assigned') {
-                cardClass += ' status-assigned';
-                statusClass = 'status-active';
-                statusText = 'Called';
-                cabin = patient.doctor_cabin || '';
-            } else if (patient.status === 'consultation_in_progress') {
-                cardClass += ' status-in-progress';
-                statusClass = 'status-active';
-                statusText = 'In Consultation';
-                cabin = patient.doctor_cabin || '';
-            } else if (patient.status === 'dilation_in_progress') {
-                cardClass += ' status-dilation';
-                statusClass = 'status-dilation';
-                statusText = 'Dilating';
-            } else if (patient.status === 'dilation_completed') {
-                cardClass += ' status-dilated';
-                statusClass = 'status-waiting';
-                statusText = 'Waiting (Dilated)';
+            // Equal Side-by-Side Columns
+            var colIdx = 0;
+            if (cfg.showExaminer) {
+                html += buildQueuePanelHtml('examiner', 'EXAMINATION / OPTOMETRY', 'Eye Examination & Triage', 'Room 1', ACCENTS[colIdx % ACCENTS.length], TOKEN_ACCENTS[colIdx % ACCENTS.length], false);
+                colIdx++;
+            }
+
+            for (var d = 0; d < configuredDoctors.length; d++) {
+                var docItem = configuredDoctors[d];
+                var dName = docItem.user_name || docItem.name || 'Dr. Consultant';
+                var dRole = (docItem.specialization || 'Consultant') + ' - OPD';
+                var dCabin = 'Cabin ' + (d + 1);
+                var cAccent = ACCENTS[colIdx % ACCENTS.length];
+                var cTokenAccent = TOKEN_ACCENTS[colIdx % ACCENTS.length];
+                html += buildQueuePanelHtml('doctor-' + docItem.id, dName, dRole, dCabin, cAccent, cTokenAccent, false);
+                colIdx++;
             }
         }
 
-        if (patient.visit_type === 'emergency') {
-            cardClass += ' emergency';
-        }
+        container.innerHTML = html;
+    }
 
-        var tokenNumber = patient.token_number || patient.token || '--';
-        var patientName = patient.patient_name || 'Unknown';
-        var uhid = patient.patient_uhid || patient.uhid || '';
+    function buildQueuePanelHtml(panelId, title, role, cabin, accentClass, tokenAccentClass, isStacked) {
+        var stackedClass = isStacked ? ' is-stacked' : '';
+        var html = '';
+        html += '<div id="panel-' + panelId + '" class="queue-panel' + stackedClass + '">';
 
-        var html = '<div class="' + cardClass + '">';
-        html += '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>';
-        html += '<td width="80" valign="middle"><div class="token-number">' + tokenNumber + '</div></td>';
-        html += '<td valign="middle" style="padding-left: 15px;">';
-        html += '<div class="patient-name"><strong>' + patientName + '</strong></div>';
-        if (uhid) {
-            html += '<div class="patient-uhid">UHID: ' + uhid + '</div>';
-        }
-        html += '</td>';
-        html += '<td width="130" align="center" valign="middle">';
-        html += '<span class="patient-status ' + statusClass + '">' + statusText + '</span>';
-        html += '</td>';
-        if (cabin) {
-            html += '<td width="100" align="right" valign="middle">';
-            html += '<span class="cabin-info">' + cabin + '</span>';
-            html += '</td>';
-        }
-        html += '</tr></table></div>';
+        // Practitioner Header Pill
+        html += '<div class="practitioner-pill ' + accentClass + '">';
+        html += '  <div class="practitioner-info">';
+        html += '    <div class="practitioner-name">' + title + '</div>';
+        html += '    <div class="practitioner-role">' + role + '</div>';
+        html += '  </div>';
+        html += '  <div class="practitioner-cabin-tag">' + cabin + '</div>';
+        html += '</div>';
 
+        // Hero "NOW SERVING" Box
+        html += '<div class="now-serving-box" id="hero-box-' + panelId + '">';
+        html += '  <div class="serving-sublabel">NOW SERVING</div>';
+        html += '  <div class="hero-token-number ' + tokenAccentClass + '" id="token-' + panelId + '">--</div>';
+        html += '  <div class="hero-patient-name" id="name-' + panelId + '">Ready for Patient</div>';
+        html += '  <div class="hero-cabin-badge" id="cabin-' + panelId + '" style="display:none;">' + cabin + '</div>';
+        html += '</div>';
+
+        // "WAITING QUEUE" List
+        html += '<div class="waiting-section">';
+        html += '  <div class="queue-section-header">WAITING QUEUE</div>';
+        html += '  <div class="waiting-list-scroll" id="waiting-list-' + panelId + '">';
+        html += '    <div class="empty-queue-message">No waiting patients</div>';
+        html += '  </div>';
+        html += '</div>';
+
+        html += '</div>';
         return html;
     }
 
-    function updateOptometristStats(patients) {
-        var waiting = 0;
-        var inProgress = 0;
-
-        for (var i = 0; i < patients.length; i++) {
-            var status = patients[i].status;
-            if (status === 'awaiting_optometrist' || status === 'awaiting_examiner') {
-                waiting++;
-            } else if (status === 'optometrist_assigned' || status === 'examiner_assigned' ||
-                       status === 'optometrist_investigation_in_progress' || status === 'examination_in_progress') {
-                inProgress++;
-            }
-        }
-
-        var waitingEl = document.getElementById('opt-waiting');
-        var progressEl = document.getElementById('opt-progress');
-
-        if (waitingEl) waitingEl.innerHTML = waiting;
-        if (progressEl) progressEl.innerHTML = inProgress;
-    }
-
-    function updateDoctorStats(patients) {
-        var waiting = 0;
-        var inProgress = 0;
-
-        for (var i = 0; i < patients.length; i++) {
-            var status = patients[i].status;
-            if (status === 'awaiting_doctor' || status === 'dilation_completed') {
-                waiting++;
-            } else if (status === 'doctor_assigned' || status === 'consultation_in_progress' || status === 'dilation_in_progress') {
-                inProgress++;
-            }
-        }
-
-        var waitingEl = document.getElementById('doc-waiting');
-        var progressEl = document.getElementById('doc-progress');
-
-        if (waitingEl) waitingEl.innerHTML = waiting;
-        if (progressEl) progressEl.innerHTML = inProgress;
-    }
-
     // ================================================
-    // ANNOUNCEMENT SYSTEM
+    // QUEUE POLLING & LIVE UPDATES
     // ================================================
 
-    // ---- Debug Logger ----
-    function announcementDebug(category, message) {
-        if (CONFIG.ANNOUNCEMENT_DEBUG) {
-            console.log('[ANNOUNCEMENT:' + category + '] ' + message);
-        }
+    function startQueuePolling() {
+        if (queuePollInterval) clearInterval(queuePollInterval);
+        fetchQueues();
+        queuePollInterval = setInterval(fetchQueues, CONFIG.POLL_INTERVAL);
     }
 
-    // ---- AnnouncementTextGenerator ----
+    function fetchQueues() {
+        var cfg = getDisplayConfig();
+        var apiUrl = getApiUrl();
+        var token = getAuthToken();
+        var totalActive = 0;
 
-    /**
-     * Build the English TTS sentence from patient data.
-     * Backend will auto-translate this to Hindi when language='hi' is requested.
-     *
-     * Examples:
-     *   "Patient John Doe, token number 25, please proceed to Room 3."
-     *   "Patient John Doe, token number 25, please proceed for eye examination."
-     *   "Patient John Doe, token number 25, your consultation is ready."
-     */
-    function generateAnnouncementText(patientName, tokenNumber, cabin, queueType) {
-        var name = patientName || 'Unknown';
-        var token = tokenNumber || '--';
+        // 1. Fetch Examiner Queue if enabled
+        if (cfg.showExaminer && configuredDoctors.length > 0) {
+            var primaryDocId = configuredDoctors[0].id;
+            var examinerUrl = apiUrl + '/opd/eye-hospital/optometrist-queue/' + primaryDocId + '?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress';
 
-        if (cabin) {
-            return 'Patient ' + name + ', token number ' + token +
-                ', please proceed to ' + cabin + '.';
-        }
-
-        if (queueType === 'optometrist') {
-            if (currentDoctorType === 'eye') {
-                return 'Patient ' + name + ', token number ' + token +
-                    ', please proceed for eye examination.';
-            }
-            return 'Patient ' + name + ', token number ' + token +
-                ', please proceed for examination.';
-        }
-
-        // Doctor queue without cabin
-        return 'Patient ' + name + ', token number ' + token +
-            ', your consultation is ready.';
-    }
-
-    // ---- AnnouncementService ----
-
-    /**
-     * POST to /api/v1/speech and return the audio as an Object URL.
-     * Uses XMLHttpRequest with responseType='arraybuffer' for ES5 compatibility.
-     *
-     * @param {string}   text      - English text to synthesize
-     * @param {string}   language  - 'en' or 'hi'
-     * @param {Function} callback  - function(err, objectUrl)
-     */
-    function fetchSpeechAudio(text, language, callback) {
-        var ttsUrl = getTtsApiUrl();
-        if (!ttsUrl) {
-            announcementDebug('API', 'TTS URL not configured — skipping ' + language + ' audio');
-            callback('TTS URL not configured', null);
-            return;
-        }
-
-        var endpoint = ttsUrl.replace(/\/$/, '') + '/api/v1/speech';
-        announcementDebug('API', 'POST ' + endpoint + ' lang=' + language + ' text="' + text + '"');
-
-        var xhr;
-        if (window.XMLHttpRequest) {
-            xhr = new XMLHttpRequest();
-        } else if (window.ActiveXObject) {
-            try { xhr = new ActiveXObject('Msxml2.XMLHTTP'); }
-            catch (e) {
-                try { xhr = new ActiveXObject('Microsoft.XMLHTTP'); }
-                catch (e2) { callback('XMLHttpRequest not supported', null); return; }
-            }
-        }
-
-        xhr.responseType = 'arraybuffer';
-
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== 4) return;
-
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    var blob = new Blob([xhr.response], { type: 'audio/mpeg' });
-                    var objectUrl = URL.createObjectURL(blob);
-                    announcementDebug('API', 'Audio received for lang=' + language +
-                        ' size=' + xhr.response.byteLength + ' bytes');
-                    callback(null, objectUrl);
-                } catch (e) {
-                    announcementDebug('API', 'Error creating Blob URL: ' + e.message);
-                    callback(e, null);
+            ajax({
+                method: 'GET',
+                url: examinerUrl,
+                headers: { 'Authorization': 'Bearer ' + token },
+                success: function (res) {
+                    var items = parseQueueResponse(res);
+                    updateQueuePanel('examiner', items, 'Examiner Room 1');
+                    totalActive += items.length;
+                    updateTotalPatientCount(totalActive);
+                    setConnectionStatus('connected');
+                },
+                error: function () {
+                    // Try general examiner queue fallback
+                    ajax({
+                        method: 'GET',
+                        url: apiUrl + '/opd/general/examiner-queue/' + primaryDocId + '?status=awaiting_examiner,examiner_assigned,examination_in_progress',
+                        headers: { 'Authorization': 'Bearer ' + token },
+                        success: function (res2) {
+                            var items2 = parseQueueResponse(res2);
+                            updateQueuePanel('examiner', items2, 'Examiner Room 1');
+                            totalActive += items2.length;
+                            updateTotalPatientCount(totalActive);
+                            setConnectionStatus('connected');
+                        }
+                    });
                 }
-            } else {
-                announcementDebug('API', 'TTS request failed: HTTP ' + xhr.status +
-                    ' lang=' + language);
-                callback('HTTP ' + xhr.status, null);
-            }
-        };
-
-        xhr.onerror = function () {
-            announcementDebug('API', 'TTS network error for lang=' + language);
-            callback('Network error', null);
-        };
-
-        xhr.open('POST', endpoint, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.send(JSON.stringify({ text: text, language: language, slow: false }));
-    }
-
-    // ---- AudioPlaybackService ----
-
-    /**
-     * Play an audio Object URL and invoke onComplete when done (or on error/skip).
-     * Automatically revokes the Object URL after playback.
-     *
-     * @param {string}   objectUrl  - URL.createObjectURL blob URL
-     * @param {Function} onComplete - called when playback finishes or fails
-     */
-    function playAudioUrl(objectUrl, onComplete) {
-        try {
-            var audio = new Audio(objectUrl);
-
-            audio.onended = function () {
-                announcementDebug('AUDIO', 'Playback complete');
-                try { URL.revokeObjectURL(objectUrl); } catch (e) { /* ignore */ }
-                onComplete();
-            };
-
-            audio.onerror = function (e) {
-                announcementDebug('AUDIO', 'Playback error — skipping: ' +
-                    (audio.error ? audio.error.message : 'unknown'));
-                try { URL.revokeObjectURL(objectUrl); } catch (e2) { /* ignore */ }
-                onComplete();
-            };
-
-            var playPromise = audio.play();
-            if (playPromise && typeof playPromise.then === 'function') {
-                playPromise.catch(function (err) {
-                    announcementDebug('AUDIO', 'play() rejected: ' + err.message);
-                    try { URL.revokeObjectURL(objectUrl); } catch (e) { /* ignore */ }
-                    onComplete();
-                });
-            }
-
-            announcementDebug('AUDIO', 'Playback started for: ' + objectUrl);
-        } catch (e) {
-            announcementDebug('AUDIO', 'Audio() constructor failed: ' + e.message);
-            try { URL.revokeObjectURL(objectUrl); } catch (e2) { /* ignore */ }
-            onComplete();
-        }
-    }
-
-    // ---- AnnouncementQueueManager ----
-
-    var announcementQueue     = [];  // Array of { visitId, status, text }
-    var isAnnouncementPlaying = false;
-    var announcedCount        = 0;   // Session-level counter — for debug panel only (does NOT block re-announcements)
-
-    /**
-     * Reset announcement state (called on doctor change).
-     * Clears pending queue. In-flight audio is allowed to finish naturally.
-     * The previousQueue arrays in the polling section act as the sole dedup — they
-     * are also reset by handleDoctorChange(), so a doctor switch correctly re-arms
-     * announcements for the new doctor context.
-     */
-    function resetAnnouncementState() {
-        announcementQueue    = [];
-        announcedCount       = 0;
-        // Note: isAnnouncementPlaying is NOT reset — in-flight audio completes naturally,
-        // then processAnnouncementQueue() finds an empty queue and exits.
-        announcementDebug('QUEUE', 'State reset (doctor change)');
-        updateQueueDebugPanel();
-    }
-
-    /**
-     * Add an announcement to the queue and kick off processing.
-     *
-     * DEDUP STRATEGY: This function does NOT block based on a registry.
-     * The caller (checkForNewAssignments) already guarantees this is only
-     * called when the patient's status genuinely changed in the LAST poll.
-     * Blocking here would prevent re-announcement after legitimate status
-     * re-transitions (e.g. patient re-assigned after being moved).
-     *
-     * @param {string} patientId - resolved patient/record ID
-     * @param {string} status    - the triggering status
-     * @param {string} text      - English announcement text
-     */
-    function enqueueAnnouncement(patientId, status, text) {
-        announcementQueue.push({ visitId: patientId, status: status, text: text });
-        announcedCount++;
-
-        announcementDebug('QUEUE', 'Enqueued [' + patientId + '_' + status + '] "' + text +
-            '" — queue length: ' + announcementQueue.length +
-            ' | session total: ' + announcedCount);
-        updateQueueDebugPanel();
-        processAnnouncementQueue();
-    }
-
-    /**
-     * Dequeue and play the next announcement.
-     * Auto-advances until the queue is empty.
-     */
-    function processAnnouncementQueue() {
-        if (isAnnouncementPlaying) {
-            announcementDebug('QUEUE', 'Already playing — will resume after current finishes');
-            return;
-        }
-        if (announcementQueue.length === 0) {
-            announcementDebug('QUEUE', 'Queue empty — done');
-            updateQueueDebugPanel();
-            return;
+            });
         }
 
-        isAnnouncementPlaying = true;
-        var item = announcementQueue.shift();
+        // 2. Fetch Queues for each configured doctor
+        for (var i = 0; i < configuredDoctors.length; i++) {
+            (function (doc, index) {
+                var docPanelId = 'doctor-' + doc.id;
+                var cabinLabel = 'Cabin ' + (index + 1);
+                var docQueueUrl = apiUrl + '/opd/eye-hospital/group-queue/' + doc.id + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed';
 
-        announcementDebug('QUEUE', 'Processing: [' + item.visitId + '_' + item.status + 
-            '] "' + item.text + '" — remaining: ' + announcementQueue.length);
-        updateQueueDebugPanel();
-
-        playAnnouncementItem(item, function () {
-            isAnnouncementPlaying = false;
-            announcementDebug('QUEUE', 'Item complete — advancing queue');
-            updateQueueDebugPanel();
-            processAnnouncementQueue();
-        });
-    }
-
-    /**
-     * Play a single announcement item: English audio, then Hindi audio (backend translates).
-     * Same English text is sent for both; backend handles translation for 'hi'.
-     *
-     * @param {{ visitId: string, status: string, text: string }} item
-     * @param {Function} onDone - called when both languages are done (or on failure)
-     */
-    function playAnnouncementItem(item, onDone) {
-        var ttsUrl = getTtsApiUrl();
-        if (!ttsUrl) {
-            announcementDebug('QUEUE', 'TTS not configured — skipping item');
-            onDone();
-            return;
-        }
-
-        // Step 1: Fetch and play English audio
-        announcementDebug('AUDIO', 'Fetching English audio for: "' + item.text + '"');
-        fetchSpeechAudio(item.text, 'en', function (err, enUrl) {
-            if (err) {
-                announcementDebug('AUDIO', 'English fetch failed: ' + err + ' — skipping item');
-                onDone();
-                return;
-            }
-
-            playAudioUrl(enUrl, function () {
-                // Step 2: Fetch and play Hindi audio (same text — backend translates)
-                announcementDebug('AUDIO', 'Fetching Hindi audio for: "' + item.text + '"');
-                fetchSpeechAudio(item.text, 'hi', function (err2, hiUrl) {
-                    if (err2) {
-                        announcementDebug('AUDIO', 'Hindi fetch failed: ' + err2 + ' — skipping Hindi');
-                        onDone();
-                        return;
+                ajax({
+                    method: 'GET',
+                    url: docQueueUrl,
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    success: function (res) {
+                        var items = parseQueueResponse(res);
+                        updateQueuePanel(docPanelId, items, cabinLabel, doc.user_name || doc.name);
+                        totalActive += items.length;
+                        updateTotalPatientCount(totalActive);
+                        setConnectionStatus('connected');
+                    },
+                    error: function () {
+                        // General OPD fallback
+                        ajax({
+                            method: 'GET',
+                            url: apiUrl + '/opd/general/group-queue/' + doc.id + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
+                            headers: { 'Authorization': 'Bearer ' + token },
+                            success: function (res2) {
+                                var items2 = parseQueueResponse(res2);
+                                updateQueuePanel(docPanelId, items2, cabinLabel, doc.user_name || doc.name);
+                                totalActive += items2.length;
+                                updateTotalPatientCount(totalActive);
+                                setConnectionStatus('connected');
+                            }
+                        });
                     }
-                    playAudioUrl(hiUrl, onDone);
                 });
-            });
-        });
+            })(configuredDoctors[i], i);
+        }
+
+        var lastUpdateEl = document.getElementById('last-update');
+        if (lastUpdateEl) {
+            var now = new Date();
+            var h = now.getHours();
+            var m = now.getMinutes();
+            var s = now.getSeconds();
+            lastUpdateEl.innerHTML = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+        }
     }
 
-    // ---- Test Announcement Functions ----
+    function parseQueueResponse(res) {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.items)) return res.items;
+        return [];
+    }
 
-    /**
-     * Show/hide the test announcement panel in the footer.
-     */
-    window.toggleTestPanel = function () {
-        var body = document.getElementById('test-panel-body');
-        var btn  = document.getElementById('test-panel-toggle-btn');
-        if (!body) return;
-        if (body.style.display === 'none' || body.style.display === '') {
-            body.style.display = 'block';
-            if (btn) btn.innerHTML = '🔊 Hide Test Panel';
+    function updateTotalPatientCount(count) {
+        if (count > totalPatientsCount) totalPatientsCount = count;
+        var el = document.getElementById('total-patients-count');
+        if (el) el.innerHTML = totalPatientsCount;
+    }
+
+    function isServingStatus(status) {
+        return status === 'consultation_in_progress' ||
+            status === 'doctor_assigned' ||
+            status === 'examination_in_progress' ||
+            status === 'examiner_assigned' ||
+            status === 'optometrist_assigned' ||
+            status === 'optometrist_investigation_in_progress';
+    }
+
+    function updateQueuePanel(panelId, patients, cabinLabel, doctorName) {
+        var tokenEl = document.getElementById('token-' + panelId);
+        var nameEl = document.getElementById('name-' + panelId);
+        var cabinEl = document.getElementById('cabin-' + panelId);
+        var listEl = document.getElementById('waiting-list-' + panelId);
+        var heroBox = document.getElementById('hero-box-' + panelId);
+
+        if (!tokenEl || !nameEl || !listEl) return;
+
+        var servingPatient = null;
+        var waitingPatients = [];
+
+        for (var i = 0; i < patients.length; i++) {
+            var p = patients[i];
+            if (!servingPatient && isServingStatus(p.status)) {
+                servingPatient = p;
+            } else if (p.status !== 'completed' && p.status !== 'cancelled') {
+                waitingPatients.push(p);
+            }
+        }
+
+        // Render Hero NOW SERVING
+        if (servingPatient) {
+            var tokenNum = servingPatient.token_number || servingPatient.token || 'T-000';
+            var pName = servingPatient.patient_name || 'Patient';
+            var demo = '';
+            if (servingPatient.patient_age) demo += servingPatient.patient_age;
+            if (servingPatient.patient_gender) demo += (demo ? '' : '') + servingPatient.patient_gender.charAt(0).toUpperCase();
+            if (demo) pName += ' (' + demo + ')';
+
+            tokenEl.innerHTML = tokenNum;
+            nameEl.innerHTML = pName;
+            if (cabinEl) {
+                cabinEl.innerHTML = cabinLabel;
+                cabinEl.style.display = 'inline-block';
+            }
+
+            // Check if this is a newly called token
+            if (previousServingTokens[panelId] !== tokenNum) {
+                previousServingTokens[panelId] = tokenNum;
+                onTokenCalled(tokenNum, pName, cabinLabel, doctorName, heroBox);
+            }
         } else {
-            body.style.display = 'none';
-            if (btn) btn.innerHTML = '🔊 Test Announcement';
+            tokenEl.innerHTML = '--';
+            nameEl.innerHTML = 'Ready for Next Patient';
+            if (cabinEl) cabinEl.style.display = 'none';
+            if (heroBox) heroBox.className = 'now-serving-box';
         }
+
+        // Render WAITING QUEUE
+        if (waitingPatients.length === 0) {
+            listEl.innerHTML = '<div class="empty-queue-message">No waiting patients</div>';
+        } else {
+            var listHtml = '';
+            for (var w = 0; w < waitingPatients.length; w++) {
+                var wp = waitingPatients[w];
+                var wToken = wp.token_number || wp.token || '--';
+                var wName = wp.patient_name || 'Patient';
+                var wDemo = '';
+                if (wp.patient_age) wDemo += wp.patient_age;
+                if (wp.patient_gender) wDemo += (wDemo ? '' : '') + wp.patient_gender.charAt(0).toUpperCase();
+
+                var isNext = (w === 0);
+                var rowClass = 'waiting-row' + (isNext ? ' is-next-row' : '');
+
+                listHtml += '<div class="' + rowClass + '">';
+                listHtml += '  <span class="wait-token">' + wToken + '</span>';
+                if (isNext) {
+                    listHtml += '  <span class="badge-next">NEXT</span>';
+                }
+                listHtml += '  <span class="wait-name">' + wName + '</span>';
+                if (wDemo) {
+                    listHtml += '  <span class="wait-demo">' + wDemo + '</span>';
+                }
+                listHtml += '</div>';
+            }
+            listEl.innerHTML = listHtml;
+        }
+    }
+
+    // ================================================
+    // AUDIO & SPEECH ANNOUNCEMENT ENGINE
+    // ================================================
+
+    function onTokenCalled(tokenNum, patientName, cabin, docName, heroBox) {
+        // Visual pulse
+        if (heroBox) {
+            heroBox.className = 'now-serving-box token-call-active';
+            setTimeout(function () {
+                heroBox.className = 'now-serving-box';
+            }, 6000);
+        }
+
+        var cfg = getDisplayConfig();
+        if (cfg.voiceAlerts === false) return;
+
+        // Play chime audio
+        playChime(function () {
+            // Speak token announcement
+            var destination = docName ? (docName + ', ' + cabin) : cabin;
+            var text = 'Token ' + tokenNum + ', ' + patientName + ', please proceed to ' + destination;
+            speakText(text, 'en');
+        });
+    }
+
+    function playChime(callback) {
+        var sound = document.getElementById('notification-sound');
+        if (sound) {
+            sound.currentTime = 0;
+            var playPromise = sound.play();
+            if (playPromise && playPromise.then) {
+                playPromise.then(function () {
+                    setTimeout(callback, 1200);
+                }).catch(function () {
+                    if (callback) callback();
+                });
+            } else {
+                setTimeout(callback, 1200);
+            }
+        } else {
+            if (callback) callback();
+        }
+    }
+
+    function speakText(text, lang) {
+        if ('speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+                var utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-US';
+                utterance.rate = 0.95;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                // Speech synthesis failed
+            }
+        }
+    }
+
+    // Audio test tool
+    window.toggleTestPanel = function () {
+        var panel = document.getElementById('test-panel-body');
+        if (!panel) return;
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     };
 
-    /**
-     * Trigger a single-language test announcement from the test panel textarea.
-     * @param {string} lang - 'en' or 'hi'
-     */
     window.testAnnouncement = function (lang) {
-        var textEl   = document.getElementById('test-announcement-text');
+        var textEl = document.getElementById('test-announcement-text');
         var statusEl = document.getElementById('test-announcement-status');
-        if (!textEl || !statusEl) return;
+        var text = textEl ? textEl.value : 'Token T-012, Meera Devi, please proceed to Consultation Room 1';
 
-        var text = textEl.value.trim();
-        if (!text) { statusEl.innerHTML = '<span style="color:#e55;">Please enter announcement text.</span>'; return; }
-
-        var ttsUrl = getTtsApiUrl();
-        if (!ttsUrl) {
-            statusEl.innerHTML = '<span style="color:#e55;">TTS API URL not configured. Check .env and restart server.</span>';
-            return;
-        }
-
-        statusEl.innerHTML = '<span style="color:#f90;">⏳ Fetching ' + lang.toUpperCase() + ' audio...</span>';
-
-        fetchSpeechAudio(text, lang, function (err, objectUrl) {
-            if (err) {
-                statusEl.innerHTML = '<span style="color:#e55;">❌ Error: ' + err + '</span>';
-                return;
-            }
-            statusEl.innerHTML = '<span style="color:#3a3;">▶ Playing ' + lang.toUpperCase() + ' audio...</span>';
-            playAudioUrl(objectUrl, function () {
-                statusEl.innerHTML = '<span style="color:#3a3;">✅ Playback complete (' + lang.toUpperCase() + ')</span>';
-            });
+        if (statusEl) statusEl.innerHTML = 'Playing chime...';
+        playChime(function () {
+            if (statusEl) statusEl.innerHTML = 'Speaking (' + lang + ')...';
+            speakText(text, lang);
+            setTimeout(function () {
+                if (statusEl) statusEl.innerHTML = 'Complete';
+            }, 3000);
         });
     };
 
-    /**
-     * Test both English + Hindi sequentially through the queue system.
-     */
-    window.testBothLanguages = function () {
-        var textEl   = document.getElementById('test-announcement-text');
-        var statusEl = document.getElementById('test-announcement-status');
-        if (!textEl || !statusEl) return;
-
-        var text = textEl.value.trim();
-        if (!text) { statusEl.innerHTML = '<span style="color:#e55;">Please enter announcement text.</span>'; return; }
-
-        var ttsUrl = getTtsApiUrl();
-        if (!ttsUrl) {
-            statusEl.innerHTML = '<span style="color:#e55;">TTS API URL not configured.</span>';
-            return;
-        }
-
-        // Use a unique test ID so it bypasses the dedup registry each time
-        var testId  = 'test_' + Date.now();
-        var testKey = testId + '_test';
-
-        statusEl.innerHTML = '<span style="color:#f90;">⏳ Queued — playing English then Hindi...</span>';
-
-        // Directly push to queue bypassing dedup (it's a manual test)
-        announcementQueue.push({ visitId: testId, status: 'test', text: text });
-        announcementDebug('TEST', 'Manual test enqueued: "' + text + '"');
-        updateQueueDebugPanel();
-        processAnnouncementQueue();
-
-        statusEl.innerHTML = '<span style="color:#3a3;">▶ Processing queue... check debug panel</span>';
-    };
-
-    /**
-     * Test two consecutive announcements to verify queue sequencing.
-     */
-    window.testQueueSequencing = function () {
-        var statusEl = document.getElementById('test-announcement-status');
-        if (statusEl) statusEl.innerHTML = '<span style="color:#f90;">⏳ Adding 2 test items to queue...</span>';
-
-        var msgs = [
-            'Patient Test User, token number 100, please proceed to Room 1.',
-            'Patient Test User, your consultation is ready. Please proceed to Counter 2.'
-        ];
-
-        for (var i = 0; i < msgs.length; i++) {
-            var testId = 'seq_test_' + Date.now() + '_' + i;
-            announcementQueue.push({ visitId: testId, status: 'test', text: msgs[i] });
-        }
-
-        announcementDebug('TEST', 'Queue sequencing test: 2 items added');
-        updateQueueDebugPanel();
-        processAnnouncementQueue();
-
-        if (statusEl) statusEl.innerHTML = '<span style="color:#3a3;">▶ 2 items queued — playing sequentially...</span>';
-    };
-
-    /**
-     * Update the live queue debug panel in the test UI.
-     */
-    function updateQueueDebugPanel() {
-        var el = document.getElementById('queue-debug-info');
-        if (!el) return;
-
-        var status = isAnnouncementPlaying ? '🔊 Playing' : '⏸ Idle';
-        var qLen   = announcementQueue.length;
-        var ttsUrl = getTtsApiUrl();
-
-        el.innerHTML =
-            '<strong>Queue Status:</strong> ' + status + '<br>' +
-            '<strong>Pending Items:</strong> ' + qLen + '<br>' +
-            '<strong>Session Announcements:</strong> ' + announcedCount + '<br>' +
-            '<strong>TTS API:</strong> ' + (ttsUrl ? '<span style="color:#3a3;">' + ttsUrl + '</span>' : '<span style="color:#e55;">Not configured</span>');
-    }
-
-    // Refresh queue debug panel every 2 seconds when open
-    setInterval(function () {
-        var body = document.getElementById('test-panel-body');
-        if (body && body.style.display !== 'none' && body.style.display !== '') {
-            updateQueueDebugPanel();
-        }
-    }, 2000);
-
     // ================================================
-    // CLEANUP
+    // ON-SCREEN TV SETUP MODAL
     // ================================================
 
-    window.onbeforeunload = function () {
-        disconnectSSE();
-        if (queuePollTimeout) {
-            clearTimeout(queuePollTimeout);
-        }
-        if (pollInterval) {
-            clearInterval(pollInterval);
-        }
-        if (clockInterval) {
-            clearInterval(clockInterval);
-        }
-    };
+    window.openSetupModal = function () {
+        var overlay = document.getElementById('setup-modal-overlay');
+        if (!overlay) return;
 
-    // ================================================
-    // INITIALIZATION
-    // ================================================
+        var cfg = getDisplayConfig();
 
-    window.initLogin = function () {
-        var hospitalIdInput = document.getElementById('hospital_id');
-        if (hospitalIdInput) {
-            var savedId = getHospitalId();
-            if (savedId) {
-                hospitalIdInput.value = savedId;
+        // Set Layout radio
+        var layoutRadios = document.getElementsByName('modal-layout');
+        for (var i = 0; i < layoutRadios.length; i++) {
+            layoutRadios[i].checked = (layoutRadios[i].value === cfg.layout);
+        }
+
+        // Set Optometrist checkbox
+        var optToggle = document.getElementById('modal-optometrist-toggle');
+        if (optToggle) optToggle.checked = !!cfg.showExaminer;
+
+        // Set Ticker & Audio
+        var voiceToggle = document.getElementById('modal-voice-toggle');
+        if (voiceToggle) voiceToggle.checked = (cfg.voiceAlerts !== false);
+
+        var tickerToggle = document.getElementById('modal-ticker-toggle');
+        if (tickerToggle) tickerToggle.checked = (cfg.showHealthTips !== false);
+
+        // Render Doctor checkboxes
+        var docListEl = document.getElementById('modal-doctors-list');
+        if (docListEl) {
+            if (activeDoctors.length === 0) {
+                docListEl.innerHTML = '<p class="empty-list-note">No doctors available</p>';
+            } else {
+                var docHtml = '';
+                var selectedSet = {};
+                for (var s = 0; s < cfg.doctorIds.length; s++) {
+                    selectedSet[cfg.doctorIds[s]] = true;
+                }
+
+                for (var d = 0; d < activeDoctors.length; d++) {
+                    var doc = activeDoctors[d];
+                    var isChecked = selectedSet[doc.id] || (cfg.doctorIds.length === 0 && d < 2);
+                    var docName = doc.user_name || doc.name || 'Doctor';
+                    var spec = doc.specialization || 'Consultant';
+
+                    docHtml += '<label class="modal-doc-item">';
+                    docHtml += '  <input type="checkbox" name="modal-doc-checkbox" value="' + doc.id + '"' + (isChecked ? ' checked' : '') + '>';
+                    docHtml += '  <span class="modal-doc-name">' + docName + '</span>';
+                    docHtml += '  <span class="modal-doc-spec">(' + spec + ')</span>';
+                    docHtml += '</label>';
+                }
+                docListEl.innerHTML = docHtml;
             }
-
-            // Save on every change
-            hospitalIdInput.onchange = function () {
-                setHospitalId(this.value);
-            };
-            // Also on input for real-time update in case they don't trigger change
-            hospitalIdInput.oninput = function () {
-                setHospitalId(this.value);
-            };
         }
+
+        overlay.style.display = 'flex';
     };
 
-    // Load config on page load
-    loadConfig(function () {
-        // If we are already authenticated, redirect to display.html
-        if (getAuthToken() && document.getElementById('qr-login-container')) {
-            window.location.href = 'display.html';
-            return;
+    window.closeSetupModal = function () {
+        var overlay = document.getElementById('setup-modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+    };
+
+    window.handleModalLayoutChange = function (val) {
+        // Just for visual selection feedback if needed
+    };
+
+    window.saveSetupModal = function () {
+        var cfg = getDisplayConfig();
+
+        // Read Layout
+        var layoutRadios = document.getElementsByName('modal-layout');
+        for (var i = 0; i < layoutRadios.length; i++) {
+            if (layoutRadios[i].checked) {
+                cfg.layout = layoutRadios[i].value;
+                break;
+            }
         }
 
-        // Automatically start QR login if we are on the login page (index.html) and not logged in
-        if (!getAuthToken() && document.getElementById('qr-login-container')) {
-            initQRLogin(null);
+        // Read Optometrist
+        var optToggle = document.getElementById('modal-optometrist-toggle');
+        if (optToggle) cfg.showExaminer = optToggle.checked;
+
+        // Read Voice & Ticker
+        var voiceToggle = document.getElementById('modal-voice-toggle');
+        if (voiceToggle) cfg.voiceAlerts = voiceToggle.checked;
+
+        var tickerToggle = document.getElementById('modal-ticker-toggle');
+        if (tickerToggle) {
+            cfg.showHealthTips = tickerToggle.checked;
+            var tickerBanner = document.getElementById('ticker-banner');
+            if (tickerBanner) {
+                tickerBanner.style.display = tickerToggle.checked ? 'flex' : 'none';
+            }
+        }
+
+        // Read Selected Doctors
+        var docCheckboxes = document.getElementsByName('modal-doc-checkbox');
+        var selectedIds = [];
+        for (var d = 0; d < docCheckboxes.length; d++) {
+            if (docCheckboxes[d].checked) {
+                selectedIds.push(docCheckboxes[d].value);
+            }
+        }
+        cfg.doctorIds = selectedIds;
+
+        // Save & apply
+        saveDisplayConfig(cfg);
+        closeSetupModal();
+
+        // Re-render layout immediately
+        setupConfiguredQueues();
+        fetchQueues();
+    };
+
+    // Keyboard shortcut: Press 'S' to open TV settings modal
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 's' || e.key === 'S') {
+            if (document.getElementById('setup-modal-overlay')) {
+                window.openSetupModal();
+            }
         }
     });
-    updateCurrentYear();
-    initLogin();
 
 })();
