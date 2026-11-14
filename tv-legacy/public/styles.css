@@ -266,8 +266,8 @@ body {
    ================================================ */
 
 body.display-page {
-    background-color: #0b1329;
-    color: #f1f5f9;
+    background-color: #f1f5f9;
+    color: #0f172a;
 }
 
 #display-container {
@@ -278,9 +278,9 @@ body.display-page {
 
 /* Header */
 #header {
-    background-color: #111d38;
-    border-bottom: 1px solid #1e293b;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    background-color: #ffffff;
+    border-bottom: 2px solid #e2e8f0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
 }
 
@@ -291,11 +291,11 @@ body.display-page {
 #header-logo {
     width: 55px;
     height: 55px;
-    background-color: #1e293b;
+    background-color: #f8fafc;
     padding: 6px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    border: 1px solid #334155;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
 }
 
 #header-logo img {
@@ -307,11 +307,11 @@ body.display-page {
 #title {
     font-size: 28px;
     font-weight: 800;
-    background: linear-gradient(135deg, #38bdf8 0%, #2dd4bf 100%);
+    background: linear-gradient(135deg, #0284c7 0%, #0d9488 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    color: #38bdf8;
+    color: #0284c7;
     /* Fallback */
     margin: 0;
     text-transform: uppercase;
@@ -320,23 +320,23 @@ body.display-page {
 
 #subtitle {
     font-size: 13px;
-    color: #94a3b8;
+    color: #64748b;
     margin: 4px 0 0 0;
     font-weight: 500;
     letter-spacing: 0.5px;
 }
 
 #doctor-selector-container {
-    background-color: #1e293b;
+    background-color: #f8fafc;
     padding: 8px 14px;
     border-radius: 8px;
-    border: 1px solid #334155;
+    border: 1.5px solid #cbd5e1;
 }
 
 #doctor-selector-container label {
     font-size: 12px;
     font-weight: bold;
-    color: #94a3b8;
+    color: #475569;
     margin-right: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -345,10 +345,10 @@ body.display-page {
 #doctor-selector {
     padding: 8px 14px;
     font-size: 15px;
-    border: 1.5px solid #475569;
+    border: 1.5px solid #cbd5e1;
     border-radius: 6px;
-    background-color: #0f172a;
-    color: #f8fafc;
+    background-color: #ffffff;
+    color: #0f172a;
     min-width: 220px;
     font-weight: bold;
     cursor: pointer;
@@ -356,15 +356,15 @@ body.display-page {
 
 #doctor-selector:focus {
     outline: none;
-    border-color: #38bdf8;
+    border-color: #0284c7;
 }
 
 /* Connection Status */
 #connection-status {
-    background-color: #1e293b;
+    background-color: #f8fafc;
     padding: 8px 16px;
     border-radius: 20px;
-    border: 1px solid #334155;
+    border: 1px solid #cbd5e1;
 }
 
 #status-dot {
@@ -394,8 +394,8 @@ body.display-page {
 }
 
 .status-polling {
-    background-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+    background-color: #0284c7;
+    box-shadow: 0 0 8px rgba(2, 132, 199, 0.5);
 }
 
 .status-connecting {
@@ -411,7 +411,7 @@ body.display-page {
 #status-text {
     font-size: 13px;
     font-weight: bold;
-    color: #e2e8f0;
+    color: #334155;
     vertical-align: middle;
 }
 
@@ -419,14 +419,36 @@ body.display-page {
 #clock {
     font-size: 26px;
     font-weight: 800;
-    color: #38bdf8;
-    background-color: #1e293b;
-    border: 1px solid #334155;
+    color: #0369a1;
+    background-color: #f0f9ff;
+    border: 1.5px solid #bae6fd;
     padding: 8px 18px;
     border-radius: 8px;
-    margin-right: 15px;
+    margin-right: 12px;
     letter-spacing: 1px;
     font-variant-numeric: tabular-nums;
+}
+
+/* Theme Toggle Button in Header */
+#theme-toggle-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #334155;
+    background-color: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    vertical-align: middle;
+    margin-right: 12px;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+}
+
+#theme-toggle-btn:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
 }
 
 #logout-btn {
@@ -436,14 +458,13 @@ body.display-page {
     display: inline-block;
     vertical-align: middle;
     font-size: 0;
-    /* Remove text space */
     color: #ffffff;
     background-color: #ef4444;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 #logout-btn svg {
@@ -452,7 +473,7 @@ body.display-page {
 
 #logout-btn:hover {
     background-color: #dc2626;
-    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5);
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
     transform: translateY(-1px);
 }
 
@@ -466,17 +487,16 @@ body.display-page {
 
 .header-hidden #main-content {
     height: calc(100% - 45px);
-    /* Only footer remains */
 }
 
 /* Queue Panels */
 .queue-panel {
-    background-color: #111d38;
+    background-color: #ffffff;
     border-radius: 14px;
     height: 100%;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    border: 1px solid #1e293b;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
 }
 
 .panel-header {
@@ -490,7 +510,6 @@ body.display-page {
 .optometrist-header {
     background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
     background-color: #0284c7;
-    /* Fallback */
 }
 
 /* General flow examination header accent */
@@ -502,7 +521,6 @@ body.general-flow .optometrist-header {
 .doctor-header {
     background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
     background-color: #0d9488;
-    /* Fallback */
 }
 
 .panel-header h2 {
@@ -518,13 +536,13 @@ body.general-flow .optometrist-header {
 
 .stat-badge {
     display: inline-block;
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: rgba(255, 255, 255, 0.22);
     padding: 6px 14px;
     border-radius: 20px;
     font-size: 14px;
     font-weight: 800;
     margin-left: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 /* Queue List */
@@ -532,38 +550,49 @@ body.general-flow .optometrist-header {
     padding: 16px;
     height: calc(100% - 95px);
     overflow-y: auto;
+    background-color: #f8fafc;
 }
 
 .empty-message {
     text-align: center;
-    color: #64748b;
+    color: #94a3b8;
     font-size: 18px;
     font-weight: 600;
     padding: 60px 20px;
 }
 
-/* Patient Card */
+/* Patient Card (Default / Light Theme) */
 .patient-card {
-    background-color: #17233f;
-    border: 2px solid #233354;
+    background-color: #ffffff;
+    border: 2px solid #e2e8f0;
     border-radius: 12px;
     padding: 14px 20px;
     margin-bottom: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.05);
 }
 
 .patient-card.status-assigned {
-    background-color: #082820;
+    background-color: #ecfdf5;
     border-color: #10b981;
 }
 
 .patient-card.status-in-progress {
-    background-color: #2b1f0c;
+    background-color: #fffbeb;
     border-color: #f59e0b;
 }
 
+.patient-card.status-dilation {
+    background-color: #faf5ff;
+    border-color: #a855f7;
+}
+
+.patient-card.status-dilated {
+    background-color: #f0f9ff;
+    border-color: #38bdf8;
+}
+
 .patient-card.emergency {
-    background-color: #331518;
+    background-color: #fef2f2;
     border-color: #ef4444;
 }
 
@@ -574,9 +603,9 @@ body.general-flow .optometrist-header {
 .token-number {
     font-size: 34px;
     font-weight: 900;
-    color: #38bdf8;
-    background-color: #0b1329;
-    border: 1.5px solid #334155;
+    color: #0284c7;
+    background-color: #f0f9ff;
+    border: 2px solid #bae6fd;
     padding: 8px 16px;
     border-radius: 10px;
     text-align: center;
@@ -584,32 +613,47 @@ body.general-flow .optometrist-header {
 }
 
 .patient-card.status-assigned .token-number {
-    color: #34d399;
-    border-color: #059669;
+    color: #059669;
+    background-color: #d1fae5;
+    border-color: #10b981;
 }
 
 .patient-card.status-in-progress .token-number {
-    color: #fbbf24;
-    border-color: #d97706;
+    color: #d97706;
+    background-color: #fef3c7;
+    border-color: #f59e0b;
+}
+
+.patient-card.status-dilation .token-number {
+    color: #7e22ce;
+    background-color: #f3e8ff;
+    border-color: #c084fc;
+}
+
+.patient-card.status-dilated .token-number {
+    color: #0284c7;
+    background-color: #e0f2fe;
+    border-color: #38bdf8;
 }
 
 .patient-card.emergency .token-number {
-    color: #f87171;
-    border-color: #dc2626;
+    color: #dc2626;
+    background-color: #fee2e2;
+    border-color: #ef4444;
 }
 
 .patient-name {
     font-size: 22px;
     font-weight: 800;
-    color: #ffffff;
+    color: #0f172a;
     letter-spacing: 0.3px;
 }
 
 .patient-uhid {
     font-size: 13px;
-    color: #94a3b8;
+    color: #64748b;
     margin-top: 4px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .patient-status {
@@ -622,67 +666,293 @@ body.general-flow .optometrist-header {
 }
 
 .status-waiting {
-    background-color: #1e3a5f;
-    color: #93c5fd;
-    border: 1px solid #2563eb;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #7dd3fc;
 }
 
 .status-active {
-    background-color: #064e3b;
-    color: #6ee7b7;
-    border: 1px solid #059669;
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #34d399;
 }
 
 .status-in-progress .patient-status {
-    background-color: #451a03;
-    color: #fcd34d;
-    border: 1px solid #d97706;
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+.status-dilation {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #d8b4fe;
 }
 
 .cabin-info {
     font-size: 15px;
     font-weight: 800;
-    color: #38bdf8;
-    background-color: #0b1329;
-    border: 1px solid #0284c7;
+    color: #0369a1;
+    background-color: #f0f9ff;
+    border: 1.5px solid #0284c7;
     padding: 6px 14px;
     border-radius: 6px;
 }
 
-/* Footer */
+/* Footer (Default / Light Theme) */
 #display-footer {
-    background-color: #0b1329;
+    background-color: #ffffff;
     padding: 12px 30px;
-    border-top: 1px solid #1e293b;
+    border-top: 1px solid #e2e8f0;
     font-size: 12px;
     color: #64748b;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.04);
 }
 
 #display-footer .footer-brand {
     font-size: 13px;
     line-height: 1.5;
-    color: #94a3b8;
+    color: #475569;
 }
 
 #display-footer .separator {
-    color: #334155;
+    color: #cbd5e1;
     padding: 0 8px;
 }
 
 #display-footer a {
-    color: #38bdf8;
+    color: #0284c7;
     text-decoration: none;
     font-weight: 600;
 }
 
 #display-footer a:hover {
     text-decoration: underline;
-    color: #7dd3fc;
+    color: #0369a1;
+}
+
+/* ================================================
+   DARK THEME OVERRIDES
+   ================================================ */
+
+body.theme-dark {
+    background-color: #0b1329;
+    color: #f1f5f9;
+}
+
+body.theme-dark #header {
+    background-color: #111d38;
+    border-bottom: 1px solid #1e293b;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+body.theme-dark #header-logo {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.theme-dark #title {
+    background: linear-gradient(135deg, #38bdf8 0%, #2dd4bf 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #38bdf8;
+}
+
+body.theme-dark #subtitle {
+    color: #94a3b8;
+}
+
+body.theme-dark #doctor-selector-container {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+}
+
+body.theme-dark #doctor-selector-container label {
+    color: #94a3b8;
+}
+
+body.theme-dark #doctor-selector {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-color: #475569;
+}
+
+body.theme-dark #doctor-selector:focus {
+    border-color: #38bdf8;
+}
+
+body.theme-dark #connection-status {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+}
+
+body.theme-dark #status-text {
+    color: #e2e8f0;
+}
+
+body.theme-dark #clock {
+    color: #38bdf8;
+    background-color: #1e293b;
+    border: 1px solid #334155;
+}
+
+body.theme-dark #theme-toggle-btn {
+    background-color: #1e293b;
+    border: 1.5px solid #475569;
+    color: #f8fafc;
+}
+
+body.theme-dark #theme-toggle-btn:hover {
+    background-color: #334155;
+    border-color: #64748b;
+}
+
+body.theme-dark .queue-panel {
+    background-color: #111d38;
+    border: 1px solid #1e293b;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+body.theme-dark .queue-list {
+    background-color: transparent;
+}
+
+body.theme-dark .empty-message {
+    color: #64748b;
+}
+
+body.theme-dark .patient-card {
+    background-color: #17233f;
+    border-color: #233354;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+body.theme-dark .patient-card.status-assigned {
+    background-color: #082820;
+    border-color: #10b981;
+}
+
+body.theme-dark .patient-card.status-in-progress {
+    background-color: #2b1f0c;
+    border-color: #f59e0b;
+}
+
+body.theme-dark .patient-card.status-dilation {
+    background-color: #231338;
+    border-color: #9333ea;
+}
+
+body.theme-dark .patient-card.status-dilated {
+    background-color: #142a4a;
+    border-color: #38bdf8;
+}
+
+body.theme-dark .patient-card.emergency {
+    background-color: #331518;
+    border-color: #ef4444;
+}
+
+body.theme-dark .token-number {
+    color: #38bdf8;
+    background-color: #0b1329;
+    border-color: #334155;
+}
+
+body.theme-dark .patient-card.status-assigned .token-number {
+    color: #34d399;
+    border-color: #059669;
+    background-color: #0b1329;
+}
+
+body.theme-dark .patient-card.status-in-progress .token-number {
+    color: #fbbf24;
+    border-color: #d97706;
+    background-color: #0b1329;
+}
+
+body.theme-dark .patient-card.status-dilation .token-number {
+    color: #c084fc;
+    border-color: #9333ea;
+    background-color: #0b1329;
+}
+
+body.theme-dark .patient-card.status-dilated .token-number {
+    color: #38bdf8;
+    border-color: #0284c7;
+    background-color: #0b1329;
+}
+
+body.theme-dark .patient-card.emergency .token-number {
+    color: #f87171;
+    border-color: #dc2626;
+    background-color: #0b1329;
+}
+
+body.theme-dark .patient-name {
+    color: #ffffff;
+}
+
+body.theme-dark .patient-uhid {
+    color: #94a3b8;
+}
+
+body.theme-dark .status-waiting {
+    background-color: #1e3a5f;
+    color: #93c5fd;
+    border: 1px solid #2563eb;
+}
+
+body.theme-dark .status-active {
+    background-color: #064e3b;
+    color: #6ee7b7;
+    border: 1px solid #059669;
+}
+
+body.theme-dark .status-in-progress .patient-status {
+    background-color: #451a03;
+    color: #fcd34d;
+    border: 1px solid #d97706;
+}
+
+body.theme-dark .status-dilation {
+    background-color: #3b0764;
+    color: #d8b4fe;
+    border: 1px solid #9333ea;
+}
+
+body.theme-dark .cabin-info {
+    color: #38bdf8;
+    background-color: #0b1329;
+    border: 1px solid #0284c7;
+}
+
+body.theme-dark #display-footer {
+    background-color: #0b1329;
+    border-top: 1px solid #1e293b;
+    color: #64748b;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
+}
+
+body.theme-dark #display-footer .footer-brand {
+    color: #94a3b8;
+}
+
+body.theme-dark #display-footer .separator {
+    color: #334155;
+}
+
+body.theme-dark #display-footer a {
+    color: #38bdf8;
+}
+
+body.theme-dark .settings-control label {
+    color: #94a3b8;
 }
 
 /* Scrollbar Styling (for modern browsers, gracefully ignored by old ones) */
@@ -691,16 +961,30 @@ body.general-flow .optometrist-header {
 }
 
 .queue-list::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: transparent;
 }
 
 .queue-list::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #cbd5e1;
     border-radius: 4px;
+}
+
+body.theme-dark .queue-list::-webkit-scrollbar-thumb {
+    background: #334155;
 }
 
 /* Animation for new patients (gracefully ignored by old browsers) */
 @keyframes highlight {
+    0% {
+        background-color: #fed7aa;
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+body.theme-dark @keyframes highlight {
     0% {
         background-color: #854d0e;
     }

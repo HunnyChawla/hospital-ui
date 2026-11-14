@@ -60,10 +60,14 @@
     }
 
     window.toggleHeader = function (hide) {
+        var body = document.body;
+        var current = body.className || '';
         if (hide) {
-            document.body.className += ' header-hidden';
+            if (current.indexOf('header-hidden') === -1) {
+                body.className = (current + ' header-hidden').trim();
+            }
         } else {
-            document.body.className = document.body.className.replace(' header-hidden', '');
+            body.className = current.replace(/\bheader-hidden\b/g, '').replace(/\s+/g, ' ').trim();
         }
         setItem('tv_hide_header', hide ? 'true' : 'false');
     };
@@ -75,8 +79,54 @@
             checkbox.checked = hide;
         }
         if (hide) {
-            document.body.className += ' header-hidden';
+            var body = document.body;
+            var current = body.className || '';
+            if (current.indexOf('header-hidden') === -1) {
+                body.className = (current + ' header-hidden').trim();
+            }
         }
+    }
+
+    window.isDarkModeActive = function () {
+        return (document.body.className || '').indexOf('theme-dark') !== -1;
+    };
+
+    window.toggleTheme = function (isDark) {
+        var body = document.body;
+        var current = body.className || '';
+        if (isDark) {
+            current = current.replace(/\btheme-light\b/g, '').trim();
+            if (current.indexOf('theme-dark') === -1) {
+                current += ' theme-dark';
+            }
+        } else {
+            current = current.replace(/\btheme-dark\b/g, '').trim();
+            if (current.indexOf('theme-light') === -1) {
+                current += ' theme-light';
+            }
+        }
+        body.className = current.replace(/\s+/g, ' ').trim();
+
+        // Update header button
+        var themeBtn = document.getElementById('theme-toggle-btn');
+        if (themeBtn) {
+            themeBtn.innerHTML = isDark ? '☀️ Light' : '🌙 Dark';
+            themeBtn.setAttribute('title', isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme');
+        }
+
+        // Update footer checkbox
+        var themeCheckbox = document.getElementById('toggle-theme');
+        if (themeCheckbox) {
+            themeCheckbox.checked = !!isDark;
+        }
+
+        setItem('tv_theme', isDark ? 'dark' : 'light');
+    };
+
+    function applyThemePreference() {
+        var theme = getItem('tv_theme');
+        var isDark = (theme === 'dark');
+        window.toggleTheme(isDark);
     }
 
     window.toggleFullscreen = function (fullscreen) {
@@ -563,6 +613,9 @@
             // Apply header preference
             applyHeaderPreference();
 
+            // Apply theme preference (default: light)
+            applyThemePreference();
+
             // Start clock
             updateClock();
             clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
@@ -695,12 +748,12 @@
         if (currentDoctorType === 'eye') {
             return {
                 left: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned',
-                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress,optometrist_investigation_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed,consultation_completed,completed,no_show,checked_in,scheduled'
+                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed'
             };
         } else {
             return {
                 left: apiUrl + '/opd/general/examiner-queue/' + doctorId + '/stream?status=awaiting_examiner,examiner_assigned,examination_in_progress',
-                right: apiUrl + '/opd/general/group-queue/' + doctorId + '/stream?status=awaiting_examiner,examiner_assigned,examination_in_progress,examination_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,consultation_completed,completed,no_show'
+                right: apiUrl + '/opd/general/group-queue/' + doctorId + '/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress'
             };
         }
     }
@@ -710,7 +763,7 @@
         if (currentDoctorType === 'eye') {
             return {
                 left: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '?status=awaiting_optometrist,optometrist_assigned',
-                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress'
+                right: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed'
             };
         } else {
             return {
@@ -1238,23 +1291,66 @@
         container.innerHTML = html;
     }
 
-    function renderDoctorQueue(patients) {
-        var container = document.getElementById('doctor-queue');
+    function isTerminalStatus(status) {
+        return status === 'consultation_completed' ||
+            status === 'completed' ||
+            status === 'no_show' ||
+            status === 'cancelled' ||
+            status === 'checked_in' ||
+            status === 'scheduled';
+    }
+
+    function renderOptometristQueue(patients) {
+        var container = document.getElementById('optometrist-queue');
         if (!container) return;
 
-        if (patients.length === 0) {
+        var html = '';
+        var activeCount = 0;
+        for (var i = 0; i < patients.length; i++) {
+            if (isTerminalStatus(patients[i].status)) continue;
+            var cardHtml = renderPatientCard(patients[i], 'optometrist');
+            if (cardHtml) {
+                html += cardHtml;
+                activeCount++;
+            }
+        }
+
+        if (activeCount === 0) {
             container.innerHTML = '<p class="empty-message">No patients in queue</p>';
             return;
         }
 
+        container.innerHTML = html;
+    }
+
+    function renderDoctorQueue(patients) {
+        var container = document.getElementById('doctor-queue');
+        if (!container) return;
+
         var html = '';
+        var activeCount = 0;
         for (var i = 0; i < patients.length; i++) {
-            html += renderPatientCard(patients[i], 'doctor');
+            if (isTerminalStatus(patients[i].status)) continue;
+            var cardHtml = renderPatientCard(patients[i], 'doctor');
+            if (cardHtml) {
+                html += cardHtml;
+                activeCount++;
+            }
         }
+
+        if (activeCount === 0) {
+            container.innerHTML = '<p class="empty-message">No patients in queue</p>';
+            return;
+        }
+
         container.innerHTML = html;
     }
 
     function renderPatientCard(patient, queueType) {
+        if (!patient || isTerminalStatus(patient.status)) {
+            return '';
+        }
+
         var cardClass = 'patient-card';
         var statusClass = 'status-waiting';
         var statusText = 'Waiting';
@@ -1283,6 +1379,14 @@
                 statusClass = 'status-active';
                 statusText = 'In Consultation';
                 cabin = patient.doctor_cabin || '';
+            } else if (patient.status === 'dilation_in_progress') {
+                cardClass += ' status-dilation';
+                statusClass = 'status-dilation';
+                statusText = 'Dilating';
+            } else if (patient.status === 'dilation_completed') {
+                cardClass += ' status-dilated';
+                statusClass = 'status-waiting';
+                statusText = 'Waiting (Dilated)';
             }
         }
 
@@ -1303,7 +1407,7 @@
             html += '<div class="patient-uhid">UHID: ' + uhid + '</div>';
         }
         html += '</td>';
-        html += '<td width="120" align="center" valign="middle">';
+        html += '<td width="130" align="center" valign="middle">';
         html += '<span class="patient-status ' + statusClass + '">' + statusText + '</span>';
         html += '</td>';
         if (cabin) {
@@ -1343,9 +1447,9 @@
 
         for (var i = 0; i < patients.length; i++) {
             var status = patients[i].status;
-            if (status === 'awaiting_doctor') {
+            if (status === 'awaiting_doctor' || status === 'dilation_completed') {
                 waiting++;
-            } else if (status === 'doctor_assigned' || status === 'consultation_in_progress') {
+            } else if (status === 'doctor_assigned' || status === 'consultation_in_progress' || status === 'dilation_in_progress') {
                 inProgress++;
             }
         }

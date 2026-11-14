@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body class="display-page">
+<body class="display-page theme-light">
     <div id="display-container">
         <!-- Header -->
         <div id="header">
@@ -50,8 +50,9 @@
                             <span id="status-text">Connecting...</span>
                         </div>
                     </td>
-                    <td width="15%" align="right" valign="middle">
+                    <td width="20%" align="right" valign="middle">
                         <span id="clock">00:00:00</span>
+                        <button id="theme-toggle-btn" onclick="toggleTheme(!isDarkModeActive())" title="Toggle Light/Dark Theme">🌙 Dark</button>
                         <button id="logout-btn" onclick="handleLogout()" title="Logout">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
                                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -114,6 +115,9 @@
                         </div>
                         <div class="settings-control">
                             <label><input type="checkbox" id="toggle-fullscreen" onchange="toggleFullscreen(this.checked)"> Full Screen</label>
+                        </div>
+                        <div class="settings-control">
+                            <label><input type="checkbox" id="toggle-theme" onchange="toggleTheme(this.checked)"> Dark Mode</label>
                         </div>
                         <span class="footer-brand"><strong>Technesian Cura</strong> <span class="separator">|</span>
                             Revolutionizing Hospital Management <span class="separator">•</span> © <span
