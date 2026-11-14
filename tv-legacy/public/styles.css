@@ -1145,6 +1145,11 @@ body.theme-light #display-footer {
     box-shadow: 0 0 6px #10b981;
 }
 
+.status-polling {
+    background-color: #0284c7;
+    box-shadow: 0 0 6px #0284c7;
+}
+
 .status-connecting {
     background-color: #f59e0b;
     box-shadow: 0 0 6px #f59e0b;

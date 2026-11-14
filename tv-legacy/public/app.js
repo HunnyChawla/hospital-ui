@@ -591,6 +591,7 @@
     };
 
     window.handleLogout = function () {
+        stopAllStreams();
         removeItem('tv_auth_token');
         removeItem('tv_user_id');
         removeItem('tv_role');
@@ -624,7 +625,7 @@
             loadHospitalInfo();
             loadAllDoctors(function () {
                 setupConfiguredQueues();
-                startQueuePolling();
+                startQueueStreams();
             });
         });
     };
@@ -655,15 +656,20 @@
         }
     }
 
-    function setConnectionStatus(status) {
+    function setConnectionStatus(status, mode) {
         var dot = document.getElementById('status-dot');
         var text = document.getElementById('status-text');
         if (!dot || !text) return;
 
         dot.className = '';
         if (status === 'connected') {
-            dot.className = 'status-connected';
-            text.innerHTML = 'Live';
+            if (mode === 'polling') {
+                dot.className = 'status-polling';
+                text.innerHTML = 'Live (Polling)';
+            } else {
+                dot.className = 'status-connected';
+                text.innerHTML = 'Live (SSE)';
+            }
         } else if (status === 'connecting') {
             dot.className = 'status-connecting';
             text.innerHTML = 'Connecting...';
@@ -830,8 +836,262 @@
     }
 
     // ================================================
-    // QUEUE POLLING & LIVE UPDATES
+    // QUEUE STREAMING & LIVE UPDATES (SSE + Polling Fallback)
     // ================================================
+
+    var activeStreams = {};
+    var streamReconnectTimeouts = {};
+    var streamReconnectAttempts = {};
+    var latestPanelItems = {};
+
+    function stopAllStreams() {
+        for (var key in activeStreams) {
+            if (activeStreams.hasOwnProperty(key) && activeStreams[key]) {
+                try {
+                    activeStreams[key].abort();
+                } catch (e) {}
+            }
+        }
+        activeStreams = {};
+        for (var t in streamReconnectTimeouts) {
+            if (streamReconnectTimeouts.hasOwnProperty(t) && streamReconnectTimeouts[t]) {
+                clearTimeout(streamReconnectTimeouts[t]);
+            }
+        }
+        streamReconnectTimeouts = {};
+        streamReconnectAttempts = {};
+    }
+
+    function isHeartbeatMessage(data) {
+        if (!data) return false;
+        if (typeof data === 'object') {
+            if (data.event === 'heartbeat' || data.type === 'heartbeat' || (data.timestamp && !data.items && !data.queue && !Array.isArray(data))) {
+                return true;
+            }
+        }
+        if (typeof data === 'string') {
+            if (data.indexOf('heartbeat') !== -1 || data.indexOf('keepalive') !== -1 || data.indexOf('ping') !== -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function connectStream(url, onMessage, onError) {
+        var token = getAuthToken();
+        if (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined' && typeof AbortController !== 'undefined') {
+            var controller = new AbortController();
+            var isAborted = false;
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'text/event-stream',
+                    'Authorization': 'Bearer ' + token
+                },
+                signal: controller.signal
+            }).then(function (response) {
+                if (!response.ok) {
+                    var err = new Error('HTTP error ' + response.status);
+                    err.status = response.status;
+                    if (!isAborted && onError) onError(err);
+                    return;
+                }
+                if (!response.body) {
+                    if (!isAborted && onError) onError(new Error('ReadableStream not supported'));
+                    return;
+                }
+
+                var reader = response.body.getReader();
+                var decoder = new TextDecoder();
+                var buffer = '';
+
+                function readChunk() {
+                    reader.read().then(function (result) {
+                        if (result.done) {
+                            if (!isAborted && onError) {
+                                onError(new Error('Stream ended normally by server'));
+                            }
+                            return;
+                        }
+
+                        buffer += decoder.decode(result.value, { stream: true });
+                        var parts = buffer.split('\n\n');
+                        buffer = parts.pop() || '';
+
+                        for (var i = 0; i < parts.length; i++) {
+                            var part = parts[i];
+                            var lines = part.split('\n');
+                            var eventName = 'message';
+                            var currentData = [];
+                            for (var j = 0; j < lines.length; j++) {
+                                var line = lines[j];
+                                if (line.indexOf('event: ') === 0) {
+                                    eventName = line.slice(7).replace(/^\s+|\s+$/g, '');
+                                } else if (line.indexOf('data: ') === 0) {
+                                    currentData.push(line.slice(6));
+                                }
+                            }
+
+                            if (eventName === 'heartbeat' || eventName === 'ping' || eventName === 'keepalive') {
+                                continue;
+                            }
+
+                            if (currentData.length > 0) {
+                                var dataStr = currentData.join('\n');
+                                try {
+                                    var parsed = JSON.parse(dataStr);
+                                    if (!isHeartbeatMessage(parsed)) {
+                                        onMessage(parsed);
+                                    }
+                                } catch (e) {
+                                    if (!isHeartbeatMessage(dataStr)) {
+                                        onMessage(dataStr);
+                                    }
+                                }
+                            }
+                        }
+
+                        readChunk();
+                    }).catch(function (readErr) {
+                        if (readErr.name !== 'AbortError' && !isAborted && onError) {
+                            onError(readErr);
+                        }
+                    });
+                }
+
+                readChunk();
+            }).catch(function (fetchErr) {
+                if (fetchErr.name !== 'AbortError' && !isAborted && onError) {
+                    onError(fetchErr);
+                }
+            });
+
+            return {
+                abort: function () {
+                    isAborted = true;
+                    try {
+                        controller.abort();
+                    } catch (e) {}
+                }
+            };
+        } else {
+            return null; // Signals ReadableStream unsupported
+        }
+    }
+
+    function recomputeTotalActive() {
+        var total = 0;
+        for (var k in latestPanelItems) {
+            if (latestPanelItems.hasOwnProperty(k) && Array.isArray(latestPanelItems[k])) {
+                total += latestPanelItems[k].length;
+            }
+        }
+        updateTotalPatientCount(total);
+    }
+
+    function updateLastUpdateTimestamp() {
+        var lastUpdateEl = document.getElementById('last-update');
+        if (lastUpdateEl) {
+            var now = new Date();
+            var h = now.getHours();
+            var m = now.getMinutes();
+            var s = now.getSeconds();
+            lastUpdateEl.innerHTML = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+        }
+    }
+
+    function startSingleQueueStream(streamKey, primaryUrl, fallbackUrl, onData) {
+        if (activeStreams[streamKey]) {
+            try { activeStreams[streamKey].abort(); } catch (e) {}
+            delete activeStreams[streamKey];
+        }
+
+        var currentUrl = primaryUrl;
+
+        function attemptConnect() {
+            var stream = connectStream(currentUrl, function (res) {
+                streamReconnectAttempts[streamKey] = 0;
+                setConnectionStatus('connected', 'sse');
+                updateLastUpdateTimestamp();
+                var items = parseQueueResponse(res);
+                latestPanelItems[streamKey] = items;
+                onData(items);
+                recomputeTotalActive();
+            }, function (err) {
+                if (err && (err.status === 404 || err.status === 405) && fallbackUrl && currentUrl !== fallbackUrl) {
+                    currentUrl = fallbackUrl;
+                    attemptConnect();
+                    return;
+                }
+
+                if (err && err.message === 'ReadableStream not supported') {
+                    startQueuePolling();
+                    return;
+                }
+
+                var attempts = streamReconnectAttempts[streamKey] || 0;
+                attempts++;
+                streamReconnectAttempts[streamKey] = attempts;
+                var delay = Math.min(2000 * Math.pow(1.5, attempts - 1), 15000);
+
+                setConnectionStatus('connecting');
+                streamReconnectTimeouts[streamKey] = setTimeout(function () {
+                    attemptConnect();
+                }, delay);
+            });
+
+            if (!stream) {
+                startQueuePolling();
+                return;
+            }
+
+            activeStreams[streamKey] = stream;
+        }
+
+        attemptConnect();
+    }
+
+    function startQueueStreams() {
+        if (queuePollInterval) {
+            clearInterval(queuePollInterval);
+            queuePollInterval = null;
+        }
+        stopAllStreams();
+
+        if (typeof window.fetch === 'undefined' || typeof window.ReadableStream === 'undefined' || typeof AbortController === 'undefined') {
+            startQueuePolling();
+            return;
+        }
+
+        var cfg = getDisplayConfig();
+        var apiUrl = getApiUrl();
+
+        // 1. Examiner stream if enabled
+        if (cfg.showExaminer && configuredDoctors.length > 0) {
+            var primaryDocId = configuredDoctors[0].id;
+            var examinerPrimary = apiUrl + '/opd/eye-hospital/optometrist-queue/' + primaryDocId + '/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress';
+            var examinerFallback = apiUrl + '/opd/general/examiner-queue/' + primaryDocId + '/stream?status=awaiting_examiner,examiner_assigned,examination_in_progress';
+
+            startSingleQueueStream('examiner', examinerPrimary, examinerFallback, function (items) {
+                updateQueuePanel('examiner', items, 'Examiner Room 1');
+            });
+        }
+
+        // 2. Doctor streams
+        for (var i = 0; i < configuredDoctors.length; i++) {
+            (function (doc, index) {
+                var docPanelId = 'doctor-' + doc.id;
+                var cabinLabel = 'Cabin ' + (index + 1);
+                var docPrimary = apiUrl + '/opd/eye-hospital/group-queue/' + doc.id + '/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed';
+                var docFallback = apiUrl + '/opd/general/group-queue/' + doc.id + '/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress';
+
+                startSingleQueueStream(docPanelId, docPrimary, docFallback, function (items) {
+                    updateQueuePanel(docPanelId, items, cabinLabel, doc.user_name || doc.name);
+                });
+            })(configuredDoctors[i], i);
+        }
+    }
 
     function startQueuePolling() {
         if (queuePollInterval) clearInterval(queuePollInterval);
@@ -843,7 +1103,6 @@
         var cfg = getDisplayConfig();
         var apiUrl = getApiUrl();
         var token = getAuthToken();
-        var totalActive = 0;
 
         // 1. Fetch Examiner Queue if enabled
         if (cfg.showExaminer && configuredDoctors.length > 0) {
@@ -857,12 +1116,12 @@
                 success: function (res) {
                     var items = parseQueueResponse(res);
                     updateQueuePanel('examiner', items, 'Examiner Room 1');
-                    totalActive += items.length;
-                    updateTotalPatientCount(totalActive);
-                    setConnectionStatus('connected');
+                    latestPanelItems['examiner'] = items;
+                    recomputeTotalActive();
+                    setConnectionStatus('connected', 'polling');
+                    updateLastUpdateTimestamp();
                 },
                 error: function () {
-                    // Try general examiner queue fallback
                     ajax({
                         method: 'GET',
                         url: apiUrl + '/opd/general/examiner-queue/' + primaryDocId + '?status=awaiting_examiner,examiner_assigned,examination_in_progress',
@@ -870,9 +1129,10 @@
                         success: function (res2) {
                             var items2 = parseQueueResponse(res2);
                             updateQueuePanel('examiner', items2, 'Examiner Room 1');
-                            totalActive += items2.length;
-                            updateTotalPatientCount(totalActive);
-                            setConnectionStatus('connected');
+                            latestPanelItems['examiner'] = items2;
+                            recomputeTotalActive();
+                            setConnectionStatus('connected', 'polling');
+                            updateLastUpdateTimestamp();
                         }
                     });
                 }
@@ -893,12 +1153,12 @@
                     success: function (res) {
                         var items = parseQueueResponse(res);
                         updateQueuePanel(docPanelId, items, cabinLabel, doc.user_name || doc.name);
-                        totalActive += items.length;
-                        updateTotalPatientCount(totalActive);
-                        setConnectionStatus('connected');
+                        latestPanelItems[docPanelId] = items;
+                        recomputeTotalActive();
+                        setConnectionStatus('connected', 'polling');
+                        updateLastUpdateTimestamp();
                     },
                     error: function () {
-                        // General OPD fallback
                         ajax({
                             method: 'GET',
                             url: apiUrl + '/opd/general/group-queue/' + doc.id + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
@@ -906,23 +1166,15 @@
                             success: function (res2) {
                                 var items2 = parseQueueResponse(res2);
                                 updateQueuePanel(docPanelId, items2, cabinLabel, doc.user_name || doc.name);
-                                totalActive += items2.length;
-                                updateTotalPatientCount(totalActive);
-                                setConnectionStatus('connected');
+                                latestPanelItems[docPanelId] = items2;
+                                recomputeTotalActive();
+                                setConnectionStatus('connected', 'polling');
+                                updateLastUpdateTimestamp();
                             }
                         });
                     }
                 });
             })(configuredDoctors[i], i);
-        }
-
-        var lastUpdateEl = document.getElementById('last-update');
-        if (lastUpdateEl) {
-            var now = new Date();
-            var h = now.getHours();
-            var m = now.getMinutes();
-            var s = now.getSeconds();
-            lastUpdateEl.innerHTML = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
         }
     }
 
@@ -965,7 +1217,7 @@
             var p = patients[i];
             if (!servingPatient && isServingStatus(p.status)) {
                 servingPatient = p;
-            } else if (p.status !== 'completed' && p.status !== 'cancelled') {
+            } else if (p.status !== 'completed' && p.status !== 'cancelled' && p.status !== 'consultation_completed' && p.status !== 'no_show') {
                 waitingPatients.push(p);
             }
         }
@@ -1593,7 +1845,7 @@
 
         // Re-render layout immediately
         setupConfiguredQueues();
-        fetchQueues();
+        startQueueStreams();
     };
 
     // Keyboard shortcut: Press 'S' to open TV settings modal
