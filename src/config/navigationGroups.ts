@@ -179,7 +179,6 @@ export const HOSPITAL_GROUPS: NavGroupDefinition[] = [
     items: [
       { path: "/opd", label: "Appointments/OPD", icon: Activity },
       { path: "/patients", label: "Patients", icon: Users2 },
-      { path: "/doctor-panel", label: "My Panel (Doctor)", icon: Stethoscope },
       { path: "/optometrist-panel", label: "My Panel (Optometrist)", icon: Eye },
       { path: "/clinic-panel", label: "Clinic Panel", icon: Stethoscope },
       { path: "/queue/tv-display", label: "TV Display", icon: MonitorPlay },
@@ -489,7 +488,6 @@ export const PERMISSION_GROUPS: PermissionScreenGroupConfig[] = [
     screenPaths: [
       "/opd",
       "/patients",
-      "/doctor-panel",
       "/optometrist-panel",
       "/clinic-panel",
       "/queue/tv-display",
