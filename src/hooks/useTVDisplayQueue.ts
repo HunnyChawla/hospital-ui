@@ -387,7 +387,6 @@ export function useTVDisplayQueue({
 
                 setTimeout(() => {
                     console.log("🔊 Playing Doctor Queue Announcement", {
-                        name: current.name,
                         token: current.token,
                         messageType: current.messageType,
                         cabin: current.cabin

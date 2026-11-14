@@ -56,6 +56,7 @@ export function SurgeryPaymentSummaryPanel({
 
   const handlePrintReceipt = (paymentId: string) => {
     setPrintPaymentId(paymentId);
+    setShouldPrint(true);
   };
 
   return (

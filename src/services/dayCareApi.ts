@@ -188,7 +188,7 @@ export const dayCareApi = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   },
 
   async getDischargeSummaryPrintData(visitId: string, tenantId?: string): Promise<DischargeSummaryPrintResponse> {

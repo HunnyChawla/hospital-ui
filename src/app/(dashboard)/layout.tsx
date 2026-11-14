@@ -195,9 +195,11 @@ export default function DashboardLayout({
     authorized: boolean;
     ownPanelPath: string | null;
     pendingPanelResolution?: boolean;
+    loadingPermissions?: boolean;
   } => {
-    if (!permissionsInitialized || permissionsLoading || !isAuthenticated)
-      return { authorized: true, ownPanelPath: null };
+    if (!isAuthenticated) return { authorized: false, ownPanelPath: null };
+    if (!permissionsInitialized || permissionsLoading)
+      return { authorized: false, ownPanelPath: null, loadingPermissions: true };
 
     // Panel routing: each doctor/examiner/optometrist belongs on their designated panel
     // (resolver shared with Sidebar so the two cannot drift)
@@ -238,12 +240,12 @@ export default function DashboardLayout({
 
       const defaultScreen = userPermissions?.default_screen;
 
-      // If root is not in allowed screens but they have a default screen, go there
-      if (defaultScreen && !allowedScreens.includes("/") && defaultScreen !== "/") {
+      // Non-admin roles with a dedicated landing screen should navigate directly to it
+      if (defaultScreen && defaultScreen !== "/") {
         router.push(defaultScreen);
       }
     }
-  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, allowedScreens, router]);
+  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, router]);
 
   useEffect(() => {
     // If consent is required, do NOT fetch domain data yet
@@ -406,10 +408,12 @@ export default function DashboardLayout({
       }} />
       <LicenseExpiryAlert />
 
-      {authState.pendingPanelResolution ? (
+      {authState.loadingPermissions || authState.pendingPanelResolution ? (
         <div className="flex flex-col items-center justify-center min-h-[40vh] py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
-          <p className="text-slate-500 font-medium">Loading screen...</p>
+          <p className="text-slate-500 font-medium">
+            {authState.loadingPermissions ? "Verifying access..." : "Loading screen..."}
+          </p>
         </div>
       ) : isAuthorized ? (
         <React.Suspense fallback={
@@ -447,7 +451,15 @@ export default function DashboardLayout({
               </button>
             )}
             <button
-              onClick={() => router.push(userPermissions?.default_screen || "/")}
+              onClick={() => {
+                const targetScreen =
+                  userPermissions?.default_screen && userPermissions.default_screen !== "/"
+                    ? userPermissions.default_screen
+                    : allowedScreens.includes("/")
+                    ? "/"
+                    : allowedScreens[0] || "/login";
+                router.push(targetScreen);
+              }}
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-sky-500 text-white font-semibold rounded-xl hover:bg-sky-600 transition shadow-lg shadow-sky-100"
             >
               <HomeIcon className="h-4 w-4" />

@@ -498,6 +498,7 @@ export type MedicineItem = {
   prn_reason?: string | null;
   special_instructions?: string | null;
   side_effects?: string | null;
+  update_master?: boolean | null;
   update_master_side_effects?: boolean | null;
 };
 
@@ -1031,6 +1032,7 @@ export interface ApiPermissionSyncResponse {
   total_discovered: number;
   new_endpoints_added: number;
   updated_endpoints: number;
+  deactivated_endpoints?: number;
 }
 
 // ============================================

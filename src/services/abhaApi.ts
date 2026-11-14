@@ -190,6 +190,10 @@ export interface AbhaLinkCheckResponseDto {
   /** Non-blocking: an unverified/legacy record already carries this ABHA. */
   warning?: string | null;
   identity_mismatches?: string[];
+  /** Existing patient matched via ABDM flowchart when patient_id is omitted. */
+  matched_patient_id?: string | null;
+  matched_patient_uhid?: string | null;
+  matched_by?: string | null;
 }
 
 

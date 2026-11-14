@@ -223,6 +223,8 @@ export function AbhaEnrollmentModal({
   const [linkConflict, setLinkConflict] = useState<AbhaLinkCheckResponseDto | null>(null);
   const [checkingLink, setCheckingLink] = useState(false);
   const [existingPatient, setExistingPatient] = useState<Patient | null>(null);
+  const [existingPatientDob, setExistingPatientDob] = useState<string | null>(null);
+  const [resolutionMode, setResolutionMode] = useState<"attach" | "create_new">("attach");
   const [loadingExistingPatient, setLoadingExistingPatient] = useState(false);
   const [savingToDb, setSavingToDb] = useState(false);
   const queryClient = useQueryClient();
@@ -276,6 +278,8 @@ export function AbhaEnrollmentModal({
     setLinkConflict(null);
     setCheckingLink(false);
     setExistingPatient(null);
+    setExistingPatientDob(null);
+    setResolutionMode("attach");
     setLoadingExistingPatient(false);
     setSavingToDb(false);
     setCardSessionKey(null);
@@ -316,9 +320,10 @@ export function AbhaEnrollmentModal({
    * pre-check outage must never block a legitimate enrollment, and the sync endpoint plus the
    * DB unique index remain the real authority.
    */
-  const runLinkPrecheck = async (sessionKey: string, currentProfile?: AbhaProfileDto | null) => {
+  const runLinkPrecheck = async (sessionKey: string, _currentProfile?: AbhaProfileDto | null) => {
     setCheckingLink(true);
     setLoadingExistingPatient(true);
+    setResolutionMode("attach");
     try {
       const result = await abhaApi.checkLinkConflict({
         session_key: sessionKey,
@@ -327,67 +332,35 @@ export function AbhaEnrollmentModal({
       setLinkConflict(result);
 
       let foundPatient: Patient | null = null;
-      if (result.conflict_patient_id) {
-        try {
-          const apiPatient = await patientsApi.getById(result.conflict_patient_id);
-          foundPatient = patientsApi.mapToPatients([apiPatient])[0] || null;
-        } catch (err) {
-          console.warn("Failed to fetch conflict patient by ID:", err);
-        }
-      } else if (result.conflict_patient_uhid) {
-        try {
-          const apiPatient = await patientsApi.getByUhid(result.conflict_patient_uhid);
-          foundPatient = patientsApi.mapToPatients([apiPatient])[0] || null;
-        } catch (err) {
-          console.warn("Failed to fetch conflict patient by UHID:", err);
-        }
-      }
+      let foundDob: string | null = null;
+      const targetLookupId = result.conflict_patient_id || (!patientId ? result.matched_patient_id : null);
+      const targetLookupUhid = result.conflict_patient_uhid || (!patientId ? result.matched_patient_uhid : null);
 
-      // If no conflict_patient_id was returned, but we started from add-patient (patientId is omitted):
-      // check whether a matching patient already exists in the hospital
-      if (!foundPatient && !patientId) {
-        const prof = currentProfile || resultProfile;
-        if (prof) {
-          try {
-            if (prof.abha_number) {
-              const res = await patientsApi.search({ abha_number: prof.abha_number, page_size: 1 });
-              if (res.items && res.items.length > 0) {
-                foundPatient = patientsApi.mapToPatients(res.items)[0];
-              }
-            }
-            if (!foundPatient && prof.abha_address) {
-              const res = await patientsApi.search({ abha_address: prof.abha_address, page_size: 1 });
-              if (res.items && res.items.length > 0) {
-                foundPatient = patientsApi.mapToPatients(res.items)[0];
-              }
-            }
-            if (!foundPatient && prof.mobile && prof.mobile.length === 10) {
-              const res = await patientsApi.search({ mobile: prof.mobile, page_size: 5 });
-              if (res.items && res.items.length > 0) {
-                if (res.items.length === 1) {
-                  foundPatient = patientsApi.mapToPatients(res.items)[0];
-                } else if (prof.name) {
-                  const profNameClean = prof.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-                  const matched = res.items.find((item) => {
-                    const fullName = `${item.first_name || ""} ${item.last_name || ""}`.toLowerCase().replace(/[^a-z0-9]/g, "");
-                    return fullName && profNameClean && (fullName.includes(profNameClean) || profNameClean.includes(fullName));
-                  });
-                  foundPatient = matched ? patientsApi.mapToPatients([matched])[0] : patientsApi.mapToPatients(res.items)[0];
-                } else {
-                  foundPatient = patientsApi.mapToPatients(res.items)[0];
-                }
-              }
-            }
-          } catch (err) {
-            console.warn("Patient lookup by ABHA/mobile failed:", err);
-          }
+      if (targetLookupId) {
+        try {
+          const apiPatient = await patientsApi.getById(targetLookupId);
+          foundPatient = patientsApi.mapToPatients([apiPatient])[0] || null;
+          foundDob = apiPatient.date_of_birth || null;
+        } catch (err) {
+          console.warn("Failed to fetch matched patient by ID:", err);
+        }
+      } else if (targetLookupUhid) {
+        try {
+          const apiPatient = await patientsApi.getByUhid(targetLookupUhid);
+          foundPatient = patientsApi.mapToPatients([apiPatient])[0] || null;
+          foundDob = apiPatient.date_of_birth || null;
+        } catch (err) {
+          console.warn("Failed to fetch matched patient by UHID:", err);
         }
       }
 
       setExistingPatient(foundPatient);
+      setExistingPatientDob(foundDob);
     } catch (error) {
       console.warn("ABHA link pre-check failed; deferring to the sync call", error);
       setLinkConflict(null);
+      setExistingPatient(null);
+      setExistingPatientDob(null);
     } finally {
       setCheckingLink(false);
       setLoadingExistingPatient(false);
@@ -926,6 +899,10 @@ export function AbhaEnrollmentModal({
     onClose();
   };
 
+  const isVerifiedConflict = Boolean(!patientId && linkConflict?.can_link === false);
+  const willCreateNewPatient =
+    !patientId && (!existingPatient || (!isVerifiedConflict && resolutionMode === "create_new"));
+
   const handleCompleteAndSync = async () => {
     if (!resultProfile || !resultSessionKey) return;
     if (checkingLink || loadingExistingPatient || savingToDb) return;
@@ -934,14 +911,18 @@ export function AbhaEnrollmentModal({
     setSavingToDb(true);
     try {
       let targetPatient: Patient | null = null;
-      const targetId = existingPatient?.id || patientId;
+      const targetId =
+        patientId ||
+        (existingPatient && (isVerifiedConflict || resolutionMode === "attach")
+          ? existingPatient.id
+          : undefined);
 
       if (targetId) {
         // CASE 1: EXISTING PATIENT -> Sync ABHA details directly into database
         await abhaApi.syncToPatient(targetId, {
           session_key: resultSessionKey,
           sync_demographics: true,
-          override_mismatch: true,
+          override_mismatch: Boolean(patientId && identityMismatches.length > 0),
         });
 
         if (resultProfile.photo_base64) {
@@ -1006,7 +987,7 @@ export function AbhaEnrollmentModal({
           await abhaApi.syncToPatient(createdApiPatient.id, {
             session_key: resultSessionKey,
             sync_demographics: true,
-            override_mismatch: true,
+            override_mismatch: false,
           });
         } catch (syncErr: any) {
           console.warn("ABHA sync to newly created patient warning:", syncErr);
@@ -1631,20 +1612,143 @@ export function AbhaEnrollmentModal({
               </div>
             </div>
 
-            {/* Existing patient found: show info banner that they can attach to this patient */}
-            {existingPatient && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-900">
-                <Users className="h-5 w-5 shrink-0 mt-0.5 text-sky-600" />
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold">Existing Patient Found in Records</p>
-                  <p className="text-xs text-sky-800">
+            {/* Verified ABHA conflict: ABHA already belongs to a verified patient in this hospital */}
+            {existingPatient && isVerifiedConflict && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-rose-600" />
+                <div className="space-y-1.5 text-left">
+                  <p className="text-sm font-semibold">ABHA Already Linked to an Existing Patient</p>
+                  <p className="text-xs text-rose-800">
                     Patient <strong>{existingPatient.name}</strong> (UHID:{" "}
-                    <span className="font-mono font-semibold">{existingPatient.healthId || linkConflict?.conflict_patient_uhid}</span>
-                    {existingPatient.mobile ? `, Mobile: ${existingPatient.mobile}` : ""}) already exists in hospital records.
+                    <span className="font-mono font-semibold">
+                      {existingPatient.healthId || linkConflict?.conflict_patient_uhid}
+                    </span>
+                    {existingPatient.gender ? `, ${existingPatient.gender}` : ""}
+                    {existingPatientDob ? `, DOB: ${formatDate(existingPatientDob)}` : ""}
+                    {existingPatient.mobile ? `, Mobile: ${existingPatient.mobile}` : ""}) already
+                    holds this verified ABHA in hospital records.
                   </p>
-                  <p className="text-xs text-sky-700">
-                    Click <strong>&ldquo;Attach ABHA to Patient&rdquo;</strong> below to save and attach this ABHA profile directly to their record.
+                  <p className="text-xs text-rose-700">
+                    Two patient records in the same hospital cannot hold the same verified ABHA.
+                    Click <strong>&ldquo;Sync to Existing Patient&rdquo;</strong> below to update
+                    their record, or use <strong>&ldquo;Start Over&rdquo;</strong> to verify a
+                    different ABHA.
                   </p>
+                </div>
+              </div>
+            )}
+
+            {/* Soft match found (demographic flowchart or unverified ABHA): let operator attach OR create new */}
+            {existingPatient && !isVerifiedConflict && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-sky-950 text-left space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <Users className="h-5 w-5 shrink-0 mt-0.5 text-sky-600" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">Possible Matching Patient Found in Records</p>
+                      {linkConflict?.matched_by && (
+                        <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 border border-sky-200">
+                          {linkConflict.matched_by === "MOBILE"
+                            ? "Matched by Mobile & Demographics"
+                            : linkConflict.matched_by === "UNVERIFIED_ABHA"
+                            ? "Unverified ABHA Match"
+                            : linkConflict.matched_by === "ABHA_ADDRESS"
+                            ? "Matched by ABHA Address"
+                            : linkConflict.matched_by === "ABHA_NUMBER"
+                            ? "Matched by ABHA Number"
+                            : `Matched (${linkConflict.matched_by})`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-sky-200/80 bg-white/90 px-3 py-2 text-xs text-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                      <div>
+                        <span className="text-slate-400">Name:</span>{" "}
+                        <strong className="text-slate-900">{existingPatient.name}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">UHID:</span>{" "}
+                        <span className="font-mono font-semibold text-slate-900">
+                          {existingPatient.healthId || linkConflict?.matched_patient_uhid}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Gender / DOB:</span>{" "}
+                        <span className="font-medium text-slate-800">
+                          {existingPatient.gender || "N/A"}
+                          {existingPatientDob
+                            ? ` • ${formatDate(existingPatientDob)}`
+                            : existingPatient.age
+                            ? ` • ${existingPatient.age} yrs`
+                            : ""}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Mobile:</span>{" "}
+                        <span className="font-medium text-slate-800">
+                          {existingPatient.mobile || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setResolutionMode("attach")}
+                    className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-all cursor-pointer ${
+                      resolutionMode === "attach"
+                        ? "border-emerald-500 bg-emerald-50/90 ring-1 ring-emerald-500"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                        resolutionMode === "attach"
+                          ? "border-emerald-600 bg-emerald-600 text-white"
+                          : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      {resolutionMode === "attach" && <Check className="h-2.5 w-2.5" />}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-semibold text-slate-900">
+                        Attach to {existingPatient.name}
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        Link this ABHA profile to the existing hospital record.
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResolutionMode("create_new")}
+                    className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-all cursor-pointer ${
+                      resolutionMode === "create_new"
+                        ? "border-sky-600 bg-white ring-1 ring-sky-600 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                        resolutionMode === "create_new"
+                          ? "border-sky-600 bg-sky-600 text-white"
+                          : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      {resolutionMode === "create_new" && <Check className="h-2.5 w-2.5" />}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-semibold text-slate-900">
+                        Not this patient — Create New Patient
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        Register <strong>{resultProfile.name || "this ABHA profile"}</strong> as a
+                        new patient and attach ABHA.
+                      </p>
+                    </div>
+                  </button>
                 </div>
               </div>
             )}
@@ -1723,9 +1827,17 @@ export function AbhaEnrollmentModal({
                 {(checkingLink || loadingExistingPatient || savingToDb) && <Loader2 className="h-4 w-4 animate-spin" />}
                 <span>
                   {savingToDb
-                    ? "Attaching & Saving…"
+                    ? willCreateNewPatient
+                      ? "Creating & Attaching…"
+                      : "Attaching & Saving…"
                     : checkingLink || loadingExistingPatient
                     ? "Checking…"
+                    : isVerifiedConflict && existingPatient
+                    ? "Sync to Existing Patient"
+                    : willCreateNewPatient
+                    ? "Create New Patient & Attach ABHA"
+                    : existingPatient
+                    ? "Attach ABHA to Existing Patient"
                     : "Attach ABHA to Patient"}
                 </span>
                 {!checkingLink && !loadingExistingPatient && !savingToDb && <ArrowRight className="h-4 w-4" />}

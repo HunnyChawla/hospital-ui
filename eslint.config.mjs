@@ -10,6 +10,9 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/preserve-manual-memoization": "off",
+      "react/no-unescaped-entities": "off",
+      "prefer-const": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
@@ -22,6 +25,7 @@ const eslintConfig = defineConfig([
     // Standalone CommonJS Node scripts, not part of the Next.js/TS app bundle.
     "scripts/**",
     "tv-legacy/**",
+    ".agents/**",
   ]),
 ]);
 

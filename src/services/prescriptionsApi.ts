@@ -253,7 +253,7 @@ export const prescriptionsApi = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   },
 
   async getPrintPdf(prescriptionOrVisitId: string, sections?: string[], tenantId?: string): Promise<Blob> {
@@ -279,7 +279,7 @@ export const prescriptionsApi = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   },
 };
 

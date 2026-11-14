@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useSidebar } from "@/hooks/useSidebar";
 import { useAppVersion } from "@/hooks/useAppVersion";
 import { VersionModal } from "@/components/common/VersionModal";
+import { PublicLegalModal, PublicLegalTab } from "@/components/legal/PublicLegalModal";
 import clsx from "clsx";
 
 interface FooterProps {
@@ -17,6 +18,7 @@ export const Footer = ({ noSidebar = false, className, isFixed = true }: FooterP
     const { isDesktopCollapsed } = useSidebar();
     const { versionData } = useAppVersion();
     const [showVersionModal, setShowVersionModal] = useState(false);
+    const [legalModalTab, setLegalModalTab] = useState<PublicLegalTab | null>(null);
 
     return (
         <>
@@ -44,16 +46,42 @@ export const Footer = ({ noSidebar = false, className, isFixed = true }: FooterP
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                        <nav aria-label="Legal and compliance links" className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-[11px] font-medium text-slate-600">
+                            <button
+                                type="button"
+                                onClick={() => setLegalModalTab("privacy")}
+                                className="px-2 py-1 rounded-md hover:bg-sky-50 hover:text-sky-700 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                            >
+                                Privacy Notice
+                            </button>
+                            <span className="text-slate-300" aria-hidden="true">·</span>
+                            <button
+                                type="button"
+                                onClick={() => setLegalModalTab("terms")}
+                                className="px-2 py-1 rounded-md hover:bg-sky-50 hover:text-sky-700 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                            >
+                                Terms
+                            </button>
+                            <span className="text-slate-300" aria-hidden="true">·</span>
+                            <button
+                                type="button"
+                                onClick={() => setLegalModalTab("grievance")}
+                                className="px-2 py-1 rounded-md hover:bg-sky-50 hover:text-sky-700 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                            >
+                                Grievance Officer
+                            </button>
+                        </nav>
+                        <div className="hidden md:block h-6 w-px bg-slate-200" />
                         <div className="flex flex-col items-end gap-0.5">
-                            <p className="text-[10px] sm:text-xs text-slate-400">
-                                © {currentYear} Technesian. All rights reserved.
+                            <p className="text-[10px] sm:text-xs text-slate-500">
+                                © {currentYear} Technesian Software Solutions LLP. All rights reserved.
                             </p>
                             <a
                                 href="https://www.technesian.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[9px] sm:text-[10px] text-sky-600 hover:text-sky-700 font-medium hover:underline transition-colors"
+                                className="text-[9px] sm:text-[10px] text-sky-700 hover:text-sky-800 font-medium hover:underline transition-colors"
                             >
                                 www.technesian.com
                             </a>
@@ -76,6 +104,12 @@ export const Footer = ({ noSidebar = false, className, isFixed = true }: FooterP
                 isOpen={showVersionModal}
                 onClose={() => setShowVersionModal(false)}
                 data={versionData}
+            />
+
+            <PublicLegalModal
+                isOpen={legalModalTab !== null}
+                initialTab={legalModalTab ?? "privacy"}
+                onClose={() => setLegalModalTab(null)}
             />
         </>
     );

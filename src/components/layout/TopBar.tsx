@@ -12,6 +12,7 @@ import {
   Laptop,
   SlidersHorizontal,
   LayoutDashboard,
+  Scale,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -478,6 +479,20 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                 </button>
               </div>
             )}
+
+            <div className="border-t border-slate-100 py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileDropdown(false);
+                  router.push("/legal");
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+              >
+                <Scale className="h-4 w-4 text-slate-400 shrink-0" />
+                <span>Legal, Privacy &amp; Rights</span>
+              </button>
+            </div>
 
             <div className="border-t border-slate-100 py-1">
               <button

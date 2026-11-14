@@ -1,17 +1,28 @@
-export const currency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
+export const currency = (value: number | undefined | null) => {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return "₹0";
+  }
+  const num = Number(value);
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
+    minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
 
 export const formatCurrency = currency;
 
 // Format currency for PDF exports (using "Rs." prefix instead of ₹ symbol for better PDF compatibility)
-export const formatCurrencyForPDF = (value: number): string => {
+export const formatCurrencyForPDF = (value: number | undefined | null): string => {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return "Rs. 0";
+  }
+  const num = Number(value);
   const formattedNumber = new Intl.NumberFormat("en-IN", {
-    maximumFractionDigits: 0,
-  }).format(value);
+    minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(num);
   // Use "Rs." prefix instead of ₹ symbol to avoid font encoding issues in jsPDF
   return `Rs. ${formattedNumber}`;
 };

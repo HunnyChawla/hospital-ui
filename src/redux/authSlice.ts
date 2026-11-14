@@ -5,6 +5,7 @@ import { fetchTenant, clearTenant } from "./tenantSlice";
 import { fetchMyPermissions, clearPermissions } from "./permissionsSlice";
 import { UserPermissions } from "@/types";
 import { getAllFeatureFlags } from "@/services/featureFlagsApi";
+import { getQueryClient } from "@/lib/react-query";
 
 type AuthState = {
   user: LoginResponse | null;
@@ -200,6 +201,13 @@ export const postConsentBootstrap = createAsyncThunk(
 export const logout = createAsyncThunk("auth/logout", async (_, { dispatch }) => {
   // Call logout API
   await authApi.logout();
+
+  // Purge TanStack Query cache to eliminate cross-session data leaks on shared devices
+  try {
+    getQueryClient().clear();
+  } catch (err) {
+    console.error("Failed to clear query client cache on logout:", err);
+  }
 
   // Clear local storage
   if (typeof window !== "undefined") {
