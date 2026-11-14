@@ -989,7 +989,7 @@
             // Check if this is a newly called token
             if (previousServingTokens[panelId] !== tokenNum) {
                 previousServingTokens[panelId] = tokenNum;
-                onTokenCalled(tokenNum, pName, cabinLabel, doctorName, heroBox);
+                onTokenCalled(tokenNum, servingPatient.patient_name || 'Patient', cabinLabel, doctorName, heroBox);
             }
         } else {
             tokenEl.innerHTML = '--';
@@ -1030,8 +1030,270 @@
     }
 
     // ================================================
-    // AUDIO & SPEECH ANNOUNCEMENT ENGINE
+    // AUDIO & SPEECH ANNOUNCEMENT ENGINE (TTS API)
     // ================================================
+
+    // ---- Debug Logger ----
+    function announcementDebug(category, message) {
+        if (CONFIG.ANNOUNCEMENT_DEBUG) {
+            console.log('[ANNOUNCEMENT:' + category + '] ' + message);
+        }
+    }
+
+    /**
+     * Resolves the TTS API endpoint.
+     * Uses configured CONFIG.TTS_API_URL or stored setting, with fallback
+     * to relative origin '/tts' when running in proxied multi-service environments.
+     */
+    function getTtsApiUrl() {
+        var url = CONFIG.TTS_API_URL || getItem('tv_tts_api_url') || '';
+        if (!url && typeof window !== 'undefined' && window.location) {
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                return window.location.origin + '/tts';
+            }
+        }
+        return url;
+    }
+
+    /**
+     * Build the English announcement text from patient data.
+     * Backend automatically translates this to Hindi when language='hi'.
+     */
+    function generateAnnouncementText(patientName, tokenNumber, cabin, docName) {
+        var name = patientName || 'Unknown';
+        var token = tokenNumber || '--';
+
+        if (docName && cabin) {
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed to ' + docName + ', ' + cabin + '.';
+        }
+
+        if (cabin) {
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed to ' + cabin + '.';
+        }
+
+        if (docName) {
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed to ' + docName + '.';
+        }
+
+        return 'Patient ' + name + ', token number ' + token +
+            ', your consultation is ready.';
+    }
+
+    /**
+     * Play notification chime (notification.wav)
+     */
+    function playNotificationSound(callback) {
+        var sound = document.getElementById('notification-sound');
+        if (sound) {
+            try {
+                sound.currentTime = 0;
+                var playPromise = sound.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                    playPromise.then(function () {
+                        if (callback) setTimeout(callback, 800);
+                    }).catch(function () {
+                        if (callback) callback();
+                    });
+                    return;
+                } else {
+                    if (callback) setTimeout(callback, 800);
+                    return;
+                }
+            } catch (e) {
+                // Sound play failed
+            }
+        }
+        if (callback) callback();
+    }
+
+    // Alias for backward compatibility
+    window.playChime = playNotificationSound;
+
+    /**
+     * POST to /api/v1/speech and return the audio as an Object URL.
+     * Uses XMLHttpRequest with responseType='arraybuffer' for ES5 legacy browser compatibility.
+     *
+     * @param {string}   text      - English text to synthesize
+     * @param {string}   language  - 'en' or 'hi'
+     * @param {Function} callback  - function(err, objectUrl)
+     */
+    function fetchSpeechAudio(text, language, callback) {
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            announcementDebug('API', 'TTS URL not configured — skipping ' + language + ' audio');
+            callback('TTS URL not configured', null);
+            return;
+        }
+
+        var endpoint = ttsUrl.replace(/\/$/, '') + '/api/v1/speech';
+        announcementDebug('API', 'POST ' + endpoint + ' lang=' + language + ' text="' + text + '"');
+
+        var xhr;
+        if (window.XMLHttpRequest) {
+            xhr = new XMLHttpRequest();
+        } else if (window.ActiveXObject) {
+            try { xhr = new ActiveXObject('Msxml2.XMLHTTP'); }
+            catch (e) {
+                try { xhr = new ActiveXObject('Microsoft.XMLHTTP'); }
+                catch (e2) { callback('XMLHttpRequest not supported', null); return; }
+            }
+        }
+
+        xhr.responseType = 'arraybuffer';
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    var blob = new Blob([xhr.response], { type: 'audio/mpeg' });
+                    var objectUrl = URL.createObjectURL(blob);
+                    announcementDebug('API', 'Audio received for lang=' + language +
+                        ' size=' + xhr.response.byteLength + ' bytes');
+                    callback(null, objectUrl);
+                } catch (e) {
+                    announcementDebug('API', 'Error creating Blob URL: ' + e.message);
+                    callback(e, null);
+                }
+            } else {
+                announcementDebug('API', 'TTS request failed: HTTP ' + xhr.status +
+                    ' lang=' + language);
+                callback('HTTP ' + xhr.status, null);
+            }
+        };
+
+        xhr.onerror = function () {
+            announcementDebug('API', 'TTS network error for lang=' + language);
+            callback('Network error', null);
+        };
+
+        xhr.open('POST', endpoint, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({ text: text, language: language, slow: false }));
+    }
+
+    /**
+     * Play an audio Object URL and invoke onComplete when done (or on error/skip).
+     * Automatically revokes the Object URL after playback.
+     */
+    function playAudioUrl(objectUrl, onComplete) {
+        try {
+            var audio = new Audio(objectUrl);
+
+            audio.onended = function () {
+                announcementDebug('AUDIO', 'Playback complete');
+                try { URL.revokeObjectURL(objectUrl); } catch (e) { /* ignore */ }
+                if (onComplete) onComplete();
+            };
+
+            audio.onerror = function (e) {
+                announcementDebug('AUDIO', 'Playback error — skipping: ' +
+                    (audio.error ? audio.error.message : 'unknown'));
+                try { URL.revokeObjectURL(objectUrl); } catch (e2) { /* ignore */ }
+                if (onComplete) onComplete();
+            };
+
+            var playPromise = audio.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch(function (err) {
+                    announcementDebug('AUDIO', 'play() rejected: ' + err.message);
+                    try { URL.revokeObjectURL(objectUrl); } catch (e) { /* ignore */ }
+                    if (onComplete) onComplete();
+                });
+            }
+
+            announcementDebug('AUDIO', 'Playback started for: ' + objectUrl);
+        } catch (e) {
+            announcementDebug('AUDIO', 'Audio() constructor failed: ' + e.message);
+            try { URL.revokeObjectURL(objectUrl); } catch (e2) { /* ignore */ }
+            if (onComplete) onComplete();
+        }
+    }
+
+    // ---- AnnouncementQueueManager ----
+
+    var announcementQueue     = [];  // Array of { visitId, status, text }
+    var isAnnouncementPlaying = false;
+    var announcedCount        = 0;   // Session-level counter
+
+    function resetAnnouncementState() {
+        announcementQueue    = [];
+        announcedCount       = 0;
+        announcementDebug('QUEUE', 'State reset');
+        updateQueueDebugPanel();
+    }
+
+    function enqueueAnnouncement(patientId, status, text) {
+        announcementQueue.push({ visitId: patientId, status: status, text: text });
+        announcedCount++;
+
+        announcementDebug('QUEUE', 'Enqueued [' + patientId + '_' + status + '] "' + text +
+            '" — queue length: ' + announcementQueue.length +
+            ' | session total: ' + announcedCount);
+        updateQueueDebugPanel();
+        processAnnouncementQueue();
+    }
+
+    function processAnnouncementQueue() {
+        if (isAnnouncementPlaying) {
+            announcementDebug('QUEUE', 'Already playing — will resume after current finishes');
+            return;
+        }
+        if (announcementQueue.length === 0) {
+            announcementDebug('QUEUE', 'Queue empty — done');
+            updateQueueDebugPanel();
+            return;
+        }
+
+        isAnnouncementPlaying = true;
+        var item = announcementQueue.shift();
+
+        announcementDebug('QUEUE', 'Processing: [' + item.visitId + '_' + item.status + 
+            '] "' + item.text + '" — remaining: ' + announcementQueue.length);
+        updateQueueDebugPanel();
+
+        playAnnouncementItem(item, function () {
+            isAnnouncementPlaying = false;
+            announcementDebug('QUEUE', 'Item complete — advancing queue');
+            updateQueueDebugPanel();
+            processAnnouncementQueue();
+        });
+    }
+
+    function playAnnouncementItem(item, onDone) {
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            announcementDebug('QUEUE', 'TTS not configured — skipping item');
+            if (onDone) onDone();
+            return;
+        }
+
+        // Step 1: Fetch and play English audio
+        announcementDebug('AUDIO', 'Fetching English audio for: "' + item.text + '"');
+        fetchSpeechAudio(item.text, 'en', function (err, enUrl) {
+            if (err) {
+                announcementDebug('AUDIO', 'English fetch failed: ' + err + ' — skipping item');
+                if (onDone) onDone();
+                return;
+            }
+
+            playAudioUrl(enUrl, function () {
+                // Step 2: Fetch and play Hindi audio (same English text — backend auto-translates)
+                announcementDebug('AUDIO', 'Fetching Hindi audio for: "' + item.text + '"');
+                fetchSpeechAudio(item.text, 'hi', function (err2, hiUrl) {
+                    if (err2) {
+                        announcementDebug('AUDIO', 'Hindi fetch failed: ' + err2 + ' — skipping Hindi');
+                        if (onDone) onDone();
+                        return;
+                    }
+                    playAudioUrl(hiUrl, onDone);
+                });
+            });
+        });
+    }
 
     function onTokenCalled(tokenNum, patientName, cabin, docName, heroBox) {
         // Visual pulse
@@ -1045,70 +1307,126 @@
         var cfg = getDisplayConfig();
         if (cfg.voiceAlerts === false) return;
 
-        // Play chime audio
-        playChime(function () {
-            // Speak token announcement
-            var destination = docName ? (docName + ', ' + cabin) : cabin;
-            var text = 'Token ' + tokenNum + ', ' + patientName + ', please proceed to ' + destination;
-            speakText(text, 'en');
-        });
-    }
+        // Play chime audio first
+        playNotificationSound();
 
-    function playChime(callback) {
-        var sound = document.getElementById('notification-sound');
-        if (sound) {
-            sound.currentTime = 0;
-            var playPromise = sound.play();
-            if (playPromise && playPromise.then) {
-                playPromise.then(function () {
-                    setTimeout(callback, 1200);
-                }).catch(function () {
-                    if (callback) callback();
-                });
-            } else {
-                setTimeout(callback, 1200);
-            }
-        } else {
-            if (callback) callback();
-        }
-    }
-
-    function speakText(text, lang) {
-        if ('speechSynthesis' in window) {
-            try {
-                window.speechSynthesis.cancel();
-                var utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-US';
-                utterance.rate = 0.95;
-                utterance.pitch = 1.0;
-                window.speechSynthesis.speak(utterance);
-            } catch (e) {
-                // Speech synthesis failed
-            }
-        }
+        // Build announcement text and enqueue for English and Hindi TTS
+        var announcementText = generateAnnouncementText(patientName, tokenNum, cabin, docName);
+        enqueueAnnouncement(tokenNum, 'called', announcementText);
     }
 
     // Audio test tool
     window.toggleTestPanel = function () {
         var panel = document.getElementById('test-panel-body');
         if (!panel) return;
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        var isHidden = panel.style.display === 'none' || panel.style.display === '';
+        panel.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+            updateQueueDebugPanel();
+        }
     };
 
     window.testAnnouncement = function (lang) {
         var textEl = document.getElementById('test-announcement-text');
         var statusEl = document.getElementById('test-announcement-status');
-        var text = textEl ? textEl.value : 'Token T-012, Meera Devi, please proceed to Consultation Room 1';
+        var text = textEl ? textEl.value.trim() : '';
+        if (!text) {
+            text = 'Patient Test User, token number 100, please proceed to Room 1.';
+        }
 
-        if (statusEl) statusEl.innerHTML = 'Playing chime...';
-        playChime(function () {
-            if (statusEl) statusEl.innerHTML = 'Speaking (' + lang + ')...';
-            speakText(text, lang);
-            setTimeout(function () {
-                if (statusEl) statusEl.innerHTML = 'Complete';
-            }, 3000);
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">TTS API URL not configured.</span>';
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">⏳ Playing chime & fetching ' + lang.toUpperCase() + ' audio...</span>';
+
+        playNotificationSound(function () {
+            fetchSpeechAudio(text, lang, function (err, objectUrl) {
+                if (err) {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">❌ Error: ' + err + '</span>';
+                    return;
+                }
+                if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">▶ Playing ' + lang.toUpperCase() + ' audio...</span>';
+                playAudioUrl(objectUrl, function () {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">✅ Playback complete (' + lang.toUpperCase() + ')</span>';
+                });
+            });
         });
     };
+
+    window.testBothLanguages = function () {
+        var textEl = document.getElementById('test-announcement-text');
+        var statusEl = document.getElementById('test-announcement-status');
+        var text = textEl ? textEl.value.trim() : '';
+        if (!text) {
+            text = 'Patient Test User, token number 100, please proceed to Room 1.';
+        }
+
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">TTS API URL not configured.</span>';
+            return;
+        }
+
+        var testId = 'test_' + Date.now();
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">⏳ Queued — playing chime, then English and Hindi...</span>';
+
+        playNotificationSound(function () {
+            announcementQueue.push({ visitId: testId, status: 'test', text: text });
+            announcementDebug('TEST', 'Manual test enqueued: "' + text + '"');
+            updateQueueDebugPanel();
+            processAnnouncementQueue();
+            if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">▶ Processing queue... check debug info</span>';
+        });
+    };
+
+    window.testQueueSequencing = function () {
+        var statusEl = document.getElementById('test-announcement-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">⏳ Adding 2 test items to queue...</span>';
+
+        var msgs = [
+            'Patient Test User, token number 100, please proceed to Room 1.',
+            'Patient Test User, your consultation is ready. Please proceed to Counter 2.'
+        ];
+
+        playNotificationSound(function () {
+            for (var i = 0; i < msgs.length; i++) {
+                var testId = 'seq_test_' + Date.now() + '_' + i;
+                announcementQueue.push({ visitId: testId, status: 'test', text: msgs[i] });
+            }
+
+            announcementDebug('TEST', 'Queue sequencing test: 2 items added');
+            updateQueueDebugPanel();
+            processAnnouncementQueue();
+
+            if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">▶ 2 items queued — playing sequentially...</span>';
+        });
+    };
+
+    function updateQueueDebugPanel() {
+        var el = document.getElementById('queue-debug-info');
+        if (!el) return;
+
+        var status = isAnnouncementPlaying ? '🔊 Playing' : '⏸ Idle';
+        var qLen = announcementQueue.length;
+        var ttsUrl = getTtsApiUrl();
+
+        el.innerHTML =
+            '<strong>Queue Status:</strong> ' + status + '<br>' +
+            '<strong>Pending Items:</strong> ' + qLen + '<br>' +
+            '<strong>Session Announcements:</strong> ' + announcedCount + '<br>' +
+            '<strong>TTS API:</strong> ' + (ttsUrl ? '<span style="color:#10b981;">' + ttsUrl + '</span>' : '<span style="color:#ef4444;">Not configured</span>');
+    }
+
+    // Refresh queue debug panel every 2 seconds when open
+    setInterval(function () {
+        var body = document.getElementById('test-panel-body');
+        if (body && body.style.display !== 'none' && body.style.display !== '') {
+            updateQueueDebugPanel();
+        }
+    }, 2000);
 
     // ================================================
     // ON-SCREEN TV SETUP MODAL

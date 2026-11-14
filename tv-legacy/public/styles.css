@@ -1597,6 +1597,7 @@ body.theme-light .modal-footer {
 .test-btn-group {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .test-btn {
@@ -1608,6 +1609,27 @@ body.theme-light .modal-footer {
     cursor: pointer;
     background-color: #0284c7;
     color: #ffffff;
+    transition: background-color 0.15s ease;
+}
+
+.test-btn:hover {
+    background-color: #0369a1;
+}
+
+.test-btn-both {
+    background-color: #059669;
+}
+
+.test-btn-both:hover {
+    background-color: #047857;
+}
+
+.test-btn-seq {
+    background-color: #7c3aed;
+}
+
+.test-btn-seq:hover {
+    background-color: #6d28d9;
 }
 
 .test-status {
